@@ -60,7 +60,10 @@ def enrich_synthetic(df: pd.DataFrame) -> pd.DataFrame:
     rng = np.random.default_rng(SEED)
     n = len(df)
     seats = df["size_class"].map({"F": 500, "E": 330, "D": 230, "C": 170}).fillna(180)
-    df["syn_fuel_reserve_min"] = rng.integers(20, 61, n)
+    # Minutes of holding fuel before the flight must leave for its alternate.
+    # Calibrated: on 3 Jan and 10 Feb 2026, 10% of flights that still landed at DXB
+    # did so 64-66 min after their normal ETA (max ~135), so 30-90 min covers that range.
+    df["syn_fuel_reserve_min"] = rng.integers(30, 91, n)
     df["syn_connecting_pax"] = (seats * rng.uniform(0.2, 0.6, n)).round().astype(int)
     df["syn_medical_priority"] = rng.random(n) < 0.01
     df["is_synthetic_fields"] = "syn_* columns are synthetic"
@@ -123,19 +126,35 @@ def main():
     win = enrich_synthetic(win)
     win.to_csv(out / "arrivals.csv", index=False)
 
-    # Stand occupancy: arrival in-block until the same aircraft's next off-block
+    # Stand occupancy: arrival in-block until the same aircraft's next off-block.
+    # Covers the re-planned flights (in_window) AND aircraft already parked when the
+    # window opens (arrived up to 24 h earlier), which the optimizer must work around.
     occ = pd.DataFrame()
     off_col = next((c for c in dep.columns if "actual" in c and "offblock" in c), None) if not dep.empty else None
     if off_col and "aircraftregistration" in dep.columns:
         d = dep.dropna(subset=[off_col, "aircraftregistration"]).copy()
         d["off_block"] = to_local(d[off_col])
-        a2 = win.dropna(subset=["actualinblocktime", "aircraftregistration"]).sort_values("actualinblocktime")
+        a2 = arr[(arr["actualinblocktime"] >= t0 - pd.Timedelta(hours=24)) &
+                 (arr["actualinblocktime"] <= t1)]
+        a2 = a2.dropna(subset=["actualinblocktime", "aircraftregistration", "stand"]).sort_values("actualinblocktime")
         d = d.sort_values("off_block")
         occ = pd.merge_asof(a2, d[["aircraftregistration", "off_block"]],
                             left_on="actualinblocktime", right_on="off_block",
                             by="aircraftregistration", direction="forward",
                             tolerance=pd.Timedelta(hours=24))
-        occ = occ[["flightnumber", "aircraftregistration", "stand", "actualinblocktime", "off_block"]]
+        # Tows to remote/maintenance stands are not recorded, so an aircraft can look
+        # parked until its next departure. It must have left by the next real arrival
+        # on the same stand: cap occupancy there.
+        nxt = arr.dropna(subset=["actualinblocktime", "stand"])[["stand", "actualinblocktime"]]
+        nxt = nxt.rename(columns={"actualinblocktime": "next_in"}).sort_values("next_in")
+        occ = pd.merge_asof(occ.sort_values("actualinblocktime"), nxt, left_on="actualinblocktime",
+                            right_on="next_in", by="stand", direction="forward",
+                            allow_exact_matches=False)
+        occ["off_block"] = occ[["off_block", "next_in"]].min(axis=1)
+        occ = occ[occ["off_block"].isna() | (occ["off_block"] > t0)]  # still parked at t0 or later
+        occ["in_window"] = occ["aodbuniquefield"].isin(win["aodbuniquefield"])
+        occ = occ[["aodbuniquefield", "flightnumber", "aircraftregistration", "size_class", "stand",
+                   "actualinblocktime", "off_block", "in_window"]]
         occ.to_csv(out / "stand_occupancy.csv", index=False)
 
     summary = {
