@@ -79,6 +79,9 @@ def load_folder(folder) -> pd.DataFrame:
         return pd.DataFrame()
     df = pd.concat((pd.read_csv(f, low_memory=False) for f in files), ignore_index=True)
     df.columns = [c.strip().lower() for c in df.columns]
+    for c in df.columns:  # AODB pads codes with spaces ("A20N ", "EK 112   ")
+        if df[c].dtype == object:
+            df[c] = df[c].str.strip()
     if "aodbuniquefield" in df.columns:  # same flight can appear in several daily files
         sort_col = "lastchanged" if "lastchanged" in df.columns else df.columns[0]
         df = df.sort_values(sort_col).drop_duplicates("aodbuniquefield", keep="last")
