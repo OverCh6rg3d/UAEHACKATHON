@@ -139,17 +139,19 @@ def _ground_delay(sc, flights: list, sequence: str, lead_min: int) -> list:
     return out
 
 
-def make_plan(sc, sequence: str = "arrival", strategy: str = "A", ground_delay: bool = True,
+def make_plan(sc, sequence: str = "arrival", strategy="A", ground_delay: bool = True,
               lead_min: int = None, with_stands: bool = True) -> pd.DataFrame:
     """Build one plan. sequence: arrival | deadline | burn | connections. strategy: A | B | C."""
     flights = sc.flights.to_dict("records")
     for f in flights:
         f["eta_normal"] = f["eta"]
         f["ground_delay_min"] = 0
+    strat = strategy if isinstance(strategy, dict) else C.STRATEGIES[strategy]
+    ground_delay = ground_delay and strat.get("ground_delay", True)
     if ground_delay and C.GROUND_DELAY:
         flights = _ground_delay(sc, flights, sequence,
                                 lead_min or sc.summary.get("decision_lead_min", C.DECISION_LEAD_MIN))
-    plan = pd.DataFrame(_sequence(sc, flights, sequence, C.STRATEGIES[strategy],
+    plan = pd.DataFrame(_sequence(sc, flights, sequence, strat,
                                   Balancer(sc.airports, sc.metar)))
     for idx in plan.index:
         g = plan.at[idx, "ground_delay_min"]

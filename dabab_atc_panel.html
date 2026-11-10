@@ -7,7 +7,8 @@
 <style>
   :root{--bg:#0b0f14;--panel:#151c25;--panel2:#1b2430;--line:#2b3644;--text:#f2f5f8;--dim:#8d9aab;--amber:#ffb020;--green:#2fd27a;--red:#ff5a5a;--blue:#5aa9ff;}
   *{box-sizing:border-box;margin:0}
-  body{background:var(--bg);color:var(--text);font:14px/1.35 Arial,Helvetica,Tahoma,sans-serif;min-width:1180px}
+  body{background:var(--bg);color:var(--text);font:14px/1.35 Arial,Helvetica,Tahoma,sans-serif;min-width:1180px;transform-origin:0 0}
+  html{overflow-x:hidden;overflow-y:auto}
   button,select{font:inherit;color:inherit}
   h2{font-size:12px;letter-spacing:.8px;color:var(--dim);text-transform:uppercase;font-weight:700;margin-bottom:8px}
   .tag{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
@@ -67,7 +68,7 @@
   .plan .rec{font-size:11px;font-weight:700;color:#04210f;background:var(--green);padding:2px 6px;border-radius:4px}
   .plan,.plan .k,.plan .nm,.plan .mt{transition:all .25s ease}
   .plan .pw{display:none;color:var(--dim);font-size:14px;border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
-  .plans.big .plan{padding:18px;gap:12px;min-height:330px}
+  .plans.big .plan{padding:16px;gap:10px}
   .plans.big .plan:hover{border-color:#5b6b80}
   .plans.big .k{width:48px;height:48px;font-size:24px}
   .plans.big .nm{font-size:21px}
@@ -126,7 +127,7 @@
   td select:disabled{border-color:var(--line);opacity:.6}
   footer{padding:0 16px 16px;color:var(--dim);font-size:12px}
   .compact td{padding:4px 8px}.compact th{padding:4px 8px}
-  .ai{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:center}
+  .ai{display:block}
   .ai .lbl{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
   .tl{display:flex;gap:4px;align-items:stretch}
   .tl div{flex:1;border-radius:6px;padding:6px 4px;text-align:center;font-size:12px;font-weight:700;border:2px solid var(--line)}
@@ -137,6 +138,23 @@
   .imp div{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;text-align:center}
   .imp b{display:block;font-size:22px;color:var(--green);direction:ltr}.imp b.bad{color:var(--amber)}
   .imp small{color:var(--dim);font-size:12px}
+  .profrow{display:flex;align-items:center;gap:12px;padding:8px 12px}.profrow h2{margin:0;max-width:140px;font-size:11px;line-height:1.25}.profrow .profiles{flex-wrap:nowrap}.profrow .chip{padding:7px 12px;white-space:nowrap}
+  .tlk{flex:2.2}.tlk>small{display:block;color:var(--dim);font-size:12px;margin-bottom:3px}.tlk .tl div{padding:2px 4px}
+  .ai{padding:8px 12px}.ai .lbl{margin-bottom:4px}.tl div{padding:4px}.imp div{padding:4px 8px}
+  footer{font-size:11px!important;padding:0 16px 8px!important;line-height:1.3}
+  #scatter{max-height:165px}
+  .compact table{font-size:12.5px}.compact td,.compact th{padding:3px 6px}
+  .log{max-height:70px!important}
+  .plans.big .plan{padding:12px;gap:8px}.plans.big .mt{row-gap:6px}.plans.big .k{width:40px;height:40px;font-size:21px}
+  .alert{padding:8px 16px}.card{padding:10px 12px}main{gap:10px;padding:10px 16px}.col{gap:10px}
+  /* wide screens (16:9 and wider): the right column splits into two, so the page is shorter and scales up */
+  body.wide main{grid-template-columns:minmax(0,1fr) 640px}
+  body.wide main>.col:last-child{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"imp log" "net log";grid-template-rows:auto 1fr;align-content:stretch}
+  body.wide .c-imp{grid-area:imp}body.wide .c-net{grid-area:net}body.wide .c-log{grid-area:log}
+  .c-log{display:flex;flex-direction:column;min-height:0}.c-log .log{height:190px;max-height:190px!important;overflow-y:auto}
+  body.wide .c-log{align-self:start}body.wide .c-log .log{height:300px;max-height:300px!important}
+  main>.col:last-child{align-self:stretch}
+  .csub{color:var(--dim);font-size:12px;margin-top:6px;line-height:1.3}
   .hide{display:none}
 </style>
 </head>
@@ -157,17 +175,17 @@
 <section class="alert">
   <div class="ttl"><b data-t="alertT"></b><span data-t="alertS"></span></div>
   <div class="kpi"><small data-t="k1"></small><b>193 m</b></div>
-  <div class="kpi"><small data-t="k2"></small><b>07:04 &ndash; 08:30</b></div>
+  <div class="kpi" id="kWin"><small data-t="k2"></small><b>07:04 &ndash; 08:30</b></div>
   <div class="kpi"><small data-t="k3"></small><b>15</b> <em data-t="k3b"></em></div>
-  <div class="kpi"><small data-t="k4"></small><b>50</b> <em data-t="k4b"></em></div>
+  <div class="kpi" id="kArr"><small data-t="k4"></small><b>50</b> <em data-t="k4b"></em></div>
+  <div class="kpi tlk hide" id="tlBox"></div>
 </section>
 
 <main id="main">
   <!-- CENTRE -->
   <div class="col">
-    <div class="card ai hide" id="aiStrip"></div>
-    <div class="card">
-      <div class="hrow"><h2 data-t="hProf"></h2></div>
+    <div class="card profrow">
+      <h2 data-t="hProf"></h2>
       <div class="profiles" id="profiles"></div>
     </div>
     <div class="card">
@@ -187,7 +205,7 @@
           <div class="lbl" data-t="cost"></div><p id="exCost"></p>
           <div class="lbl" data-t="whyNot"></div><p id="exNot"></p>
         </div>
-        <div class="conf"><div class="lbl" data-t="conf"></div><b id="exConf" class="num"></b><div class="cbar"><i id="exBar"></i></div></div>
+        <div class="conf"><div class="lbl" data-t="conf"></div><b id="exConf" class="num"></b><div class="cbar"><i id="exBar"></i></div><div class="csub" id="exConfSub"></div></div>
       </div>
       <div class="banner mod hide" id="modB"></div>
       <div class="acts">
@@ -202,16 +220,12 @@
 
   <!-- RIGHT -->
   <div class="col">
-    <div class="card">
-      <div class="hrow"><h2 data-t="hTrade"></h2><span class="tag sim" data-t="illus"></span></div>
-      <svg id="scatter" viewBox="0 0 310 200" width="100%"></svg>
-      <p style="color:var(--dim);font-size:12px;margin-top:4px" data-t="tradeN"></p>
-    </div>
-    <div class="card compact">
+    <div class="card ai hide c-imp" id="aiStrip"></div>
+    <div class="card compact c-net">
       <div class="hrow"><h2 data-t="hNet"></h2><span class="tag real" data-t="real"></span></div>
       <table id="net"></table>
     </div>
-    <div class="card">
+    <div class="card c-log">
       <div class="hrow"><h2 data-t="hLog"></h2></div>
       <div class="log" id="log"></div>
     </div>
@@ -266,12 +280,12 @@ en:{sub:'ATC decision panel · DXB approach',replay:'REPLAY · 3 Jan 2026 · sim
  k1:'Minimum visibility (METAR)',k2:'Fog window (METAR)',k3:'Landings this hour',k3b:'vs 28 normal',k4:'Arrivals scheduled 06:45–08:15',k4b:'12 on the Flights page',tabMain:'Decision',hint:'Select a plan to see why DABAB recommends it, then approve, modify or reject.',tabFl:'Flights (12)',backP:'← Back to plans',
  real:'REAL DATA',illus:'ILLUSTRATIVE',hLand:'Landings per hour · DXB',lgFog:'3 Jan 2026 (fog 07–08)',lgNorm:'Normal days (median)',
  hNet:'UAE airports · fog capability',nA:'Airport',nI:'ILS',nF:'Usable in fog',nD:'Diverted here',yes:'YES',no:'NO',fog:'fog',
- arT:'All 3 plans rejected',arS:'No DABAB plan is active. Traffic continues under standard ATC procedures until a plan is approved.',arBtn:'Request new plans',lReq:'Requested new plans (demo: same plans regenerated)',
+ arT:'All 3 plans rejected',arS:'No DABAB plan is active. Traffic continues under standard ATC procedures until a plan is approved.',arBtn:'Request new plans',lReq:'Requested new plans: alternative set',
  hProf:'Priority profile · chosen by the controller',pdelay:'Minimum delay',pfuel:'Minimum fuel / CO₂',pdiv:'Minimum diversions',pconn:'Protect connections',
  hPlans:'Recovery plans',rec:'RECOMMENDED',rejd:'REJECTED',
  nmA:'Hold all at DXB',nmB:'Balanced',nmC:'Early diversion',
  mDelay:'Avg delay',mDiv:'Diversions',mConf:'Stand conflicts',mFuel:'Extra fuel',mCo2:'Extra CO₂',mConn:'Connections at risk',min:'min',t:'t',
- why:'Why this plan',cost:'What it costs',whyNot:'Why not the others',conf:'Confidence',
+ why:'Why this plan',cost:'What it costs',whyNot:'Why not the others',conf:'Reliability',confSub:'Flights landing with at least 15 min of fuel to spare.',mRel:'Reliability',confOther:'Shown for the recommended plan ({p}).',
  whyA:'Every flight lands at DXB on the reduced CAT III rate. No passengers end up at another airport.',
  costA:'Longest holds (avg 34 min), most fuel burned, and 2 stand conflicts to fix.',
  whyB:'Diverts only the 3 flights with the lowest fuel margin or longest wait. The rest hold for a shorter time.',
@@ -295,12 +309,12 @@ ar:{sub:'لوحة قرار المراقبة الجوية · اقتراب DXB',re
  k1:'أدنى رؤية (METAR)',k2:'فترة الضباب (METAR)',k3:'الهبوط هذه الساعة',k3b:'مقابل 28 في الأيام العادية',k4:'رحلات قادمة مجدولة 06:45–08:15',k4b:'12 في صفحة الرحلات',tabMain:'القرار',hint:'اختر خطة لمعرفة سبب التوصية، ثم اعتمدها أو عدّلها أو ارفضها.',tabFl:'الرحلات (12)',backP:'العودة إلى الخطط',
  real:'بيانات حقيقية',illus:'توضيحي',hLand:'الهبوط في الساعة · DXB',lgFog:'3 يناير 2026 (ضباب 07–08)',lgNorm:'الأيام العادية (الوسيط)',
  hNet:'مطارات الإمارات · الجاهزية للضباب',nA:'المطار',nI:'ILS',nF:'صالح في الضباب',nD:'محوّلة إليه',yes:'نعم',no:'لا',fog:'ضباب',
- arT:'تم رفض الخطط الثلاث',arS:'لا توجد خطة نشطة. تستمر الحركة وفق إجراءات المراقبة الجوية المعتادة حتى اعتماد خطة.',arBtn:'طلب خطط جديدة',lReq:'طلب خطط جديدة (عرض: أُعيد توليد الخطط نفسها)',
+ arT:'تم رفض الخطط الثلاث',arS:'لا توجد خطة نشطة. تستمر الحركة وفق إجراءات المراقبة الجوية المعتادة حتى اعتماد خطة.',arBtn:'طلب خطط جديدة',lReq:'طلب خطط جديدة: مجموعة بديلة',
  hProf:'نمط الأولوية · يختاره المراقب',pdelay:'أقل تأخير',pfuel:'أقل وقود / CO₂',pdiv:'أقل تحويلات',pconn:'حماية رحلات الربط',
  hPlans:'خطط التعافي',rec:'موصى بها',rejd:'مرفوضة',
  nmA:'انتظار الجميع في DXB',nmB:'متوازنة',nmC:'تحويل مبكر',
  mDelay:'متوسط التأخير',mDiv:'التحويلات',mConf:'تعارض المواقف',mFuel:'وقود إضافي',mCo2:'CO₂ إضافي',mConn:'ربط معرّض للخطر',min:'د',t:'طن',
- why:'لماذا هذه الخطة',cost:'ما تكلفتها',whyNot:'لماذا ليست الأخرى',conf:'الثقة',
+ why:'لماذا هذه الخطة',cost:'ما تكلفتها',whyNot:'لماذا ليست الأخرى',conf:'الموثوقية',confSub:'الرحلات التي تهبط ومعها 15 دقيقة وقود إضافية على الأقل.',mRel:'الموثوقية',confOther:'تُعرض للخطة الموصى بها ({p}).',
  whyA:'تهبط كل الرحلات في DXB بمعدل CAT III المخفّض. لا ينتهي أي راكب في مطار آخر.',
  costA:'أطول انتظار (متوسط 34 دقيقة)، أكبر استهلاك للوقود، وتعارضان في المواقف.',
  whyB:'تحوّل فقط 3 رحلات ذات أقل هامش وقود أو أطول انتظار. الباقي ينتظر وقتاً أقصر.',
@@ -334,7 +348,7 @@ function allRejected(){return rejected.A&&rejected.B&&rejected.C}
 function pick(p){if(approved||rejected[p])return;sel=(p===sel)?null:p;acts=PLANS[view()].acts.slice();editing=false;render()}
 
 /* ---------- charts ---------- */
-function scatter(){
+function scatter(){if(!$('scatter'))return;
   var w=310,h=200,l=34,b=30,top=10,r=12;
   // axes follow the data: nice round steps around the three plans and D
   var xs=[DOM.delay,PLANS.A.delay,PLANS.B.delay,PLANS.C.delay],ys=[DOM.risk,PLANS.A.risk,PLANS.B.risk,PLANS.C.risk];
@@ -369,12 +383,12 @@ function render(){
   $('profiles').querySelectorAll('.chip').forEach(function(c){c.onclick=function(){if(approved)return;prof=c.dataset.p;addLog('lSel',t['p'+prof]);if(!sel)acts=PLANS[view()].acts.slice();render()}});
 
   // plans
-  var keys=['delay','div','fuel','conn'],lab={delay:'mDelay',div:'mDiv',conf:'mConf',fuel:'mFuel',co2:'mCo2',conn:'mConn'},unit={delay:t.min,fuel:t.t,co2:t.t};
-  var best={};keys.forEach(function(k){best[k]=Math.min(PLANS.A[k],PLANS.B[k],PLANS.C[k])});
+  var keys=['delay','div','fuel','conn'].concat(PLANS.A.rel!==undefined?['rel']:[]),lab={delay:'mDelay',div:'mDiv',conf:'mConf',fuel:'mFuel',co2:'mCo2',conn:'mConn',rel:'mRel'},unit={delay:t.min,fuel:t.t,co2:t.t,rel:'%'};
+  var best={};keys.forEach(function(k){best[k]=(k==='rel'?Math.max:Math.min)(PLANS.A[k],PLANS.B[k],PLANS.C[k])});
   $('plans').innerHTML=['A','B','C'].map(function(p){var d=PLANS[p];
     return '<button class="plan'+(p===sel?' sel':'')+(rejected[p]?' rej':'')+'" data-p="'+p+'"><div class="ph"><div class="k">'+p+'</div><div class="nm">'+t['nm'+p]+'</div>'+
       (rejected[p]?'<span class="tag bad">'+t.rejd+'</span>':p===PROF[prof]?'<span class="rec">'+t.rec+'</span>':'')+'</div><div class="mt">'+
-      keys.map(function(k){return '<span>'+t[lab[k]]+'</span><b class="num'+(d[k]===best[k]?' best':'')+'">'+d[k]+(unit[k]?' '+unit[k]:'')+'</b>'}).join('')+'</div><div class="pw">'+t['why'+p]+'</div></button>'}).join('');
+      keys.map(function(k){return '<span>'+t[lab[k]]+'</span><b class="num'+(d[k]===best[k]?' best':'')+'">'+d[k]+(unit[k]?(k==='rel'?'':' ')+unit[k]:'')+'</b>'}).join('')+'</div><div class="pw">'+String(t['why'+p]||'').split(/(?<=[.!؟])\s/)[0]+'</div></button>'}).join('');
   $('plans').querySelectorAll('.plan').forEach(function(c){c.onclick=function(){pick(c.dataset.p)}});
   $('plans').classList.toggle('big',!sel);
   $('hint').classList.toggle('hide',!!sel||allRejected());
@@ -388,14 +402,16 @@ function render(){
     return '<tr><td><b>'+a[0]+'</b>'+(a[3]?' <span class="tag sim">'+t.fog+'</span>':'')+'</td><td class="num">'+a[1]+'</td><td class="'+(a[2]?'yes':'nope')+'">'+(a[2]?t.yes:t.no)+'</td><td class="num">'+(a[0]==='DXB'?'—':(dv[a[0]]||0))+'</td></tr>'}).join('');
   renderFlights(t,v);
   renderLog(t);
-  scatter();
   if(!sel)return;
 
   // explanation
   $('exT').textContent=sel+' · '+t['nm'+sel];
   $('exWhy').textContent=t['why'+sel];$('exCost').textContent=t['cost'+sel];
   $('exNot').textContent=['A','B','C'].filter(function(p){return p!==sel}).map(function(p){return t['not'+p]}).join('  ');
-  $('exConf').textContent=PLANS[sel].cfTxt||(PLANS[sel].cf+'%');$('exBar').style.width=PLANS[sel].cf+'%';
+  // Reliability of the selected plan: share of stress tests in which its key result holds
+  var rel=PLANS[sel].rel!==undefined?PLANS[sel].rel:PLANS[sel].cf;
+  $('exConf').textContent=rel+'%';$('exBar').style.width=rel+'%';
+  $('exConfSub').textContent=t.confSub;
 
   // actions
   var n=mods(),lock=!!approved||!!rejected[sel];
@@ -454,22 +470,24 @@ render();
   function post(body){body.date=DATE;body.user=tx('user');
     return fetch('/api/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json()}).catch(function(){})}
   fetch('/api/scenario?date='+DATE).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(D){
-    LIVE=D;PROF=D.prof;DOM=D.dom;NET=D.net;
+    LIVE=D;DOM=D.dom;NET=D.net;var SET=0;
+    var setRec=function(){PROF={};['delay','fuel','div','conn'].forEach(function(k){PROF[k]=LIVE.prof[k][SET]})};setRec();
     var a=D.alert||{};
     T.en.illus='ENGINE · SIMULATED';T.ar.illus='المحرّك · محاكاة';
-    T.en.conf='Stable in what-if runs';T.ar.conf='ثابتة في سيناريوهات الاختبار';
+    T.en.conf='Reliability';T.ar.conf='الموثوقية';
     if(a.watch){T.en.alertS='Fog model: Watch '+a.watch+', Warning '+a.warning+'. 3 recovery plans ready.';
                 T.ar.alertS='نموذج الضباب: ترقّب '+a.watch+'، تحذير '+a.warning+'. 3 خطط جاهزة.';}
     T.en.tradeN='D = no coordination (same simulation). Lower-left is better.';T.ar.tradeN='D = بدون تنسيق (المحاكاة نفسها). الأسفل يساراً أفضل.';
     T.en.foot='Real data: Dubai Airports flight information (Data.Dubai), DXB, 3 Jan 2026; METAR via Iowa Environmental Mesonet; stands, runways and ILS from the GCAA eAIP. Plans and metrics come from the DABAB engine (simplified simulation, all 185 arrivals in the event; extra fuel = holding and diversion fuel). Fuel reserves, connecting passengers and medical priority are synthetic. Arabic text needs a native-speaker check.';
     var _render=render;
     render=function(){
-      PLANS=LIVE.plans[prof];
+      setRec();PLANS=LIVE.plans[prof][SET];
+      ['en','ar'].forEach(function(L){['A','B','C'].forEach(function(p){T[L]['nm'+p]=PLANS[p].name[L]})});
       ['en','ar'].forEach(function(L){['A','B','C'].forEach(function(p){T[L]['why'+p]=PLANS[p].why[L];T[L]['cost'+p]=PLANS[p].cost[L]});
         if(sel){var o=['A','B','C'].filter(function(p){return p!==sel});o.forEach(function(p,i){T[L]['not'+p]=PLANS[sel].not[L][i]})}});
       _render();strip()};
     function strip(){
-      var en=lang==='en',r=PLANS[PROF[prof]],d=DOM,el=$('aiStrip');el.classList.remove('hide');
+      var en=lang==='en',pid=sel||PROF[prof],r=PLANS[pid],d=DOM,el=$('aiStrip');el.classList.remove('hide');  // follows the selected plan, else the recommended one
       var pct=function(a,b){return b?Math.round(100*(a-b)/b):0};
       var cell=function(v,lab,bad){return '<div><b class="'+(bad?'bad':'')+'">'+(v>0?'+':'')+v+'%</b><small>'+lab+'</small></div>'};
       var m={delay:[r.delay,d.delay,en?'avg delay':'متوسط التأخير'],fuel:[r.fuel,d.fuel,en?'holding + diversion fuel':'وقود الانتظار والتحويل'],
@@ -478,17 +496,74 @@ render();
       var lab2=[m[2],en?'fuel':'الوقود',en?'risk index':'مؤشر المخاطر'];
       if(prof==='fuel'){a=[a[0],pct(r.delay,d.delay),a[2]];lab2[1]=en?'avg delay':'متوسط التأخير';}
       var A=LIVE.alert,lead=A.watch_lead_min,h=Math.floor(lead/60),mi=lead%60;
-      el.innerHTML='<div><div class="lbl">'+(en?'AI fog model · METAR, 7 UAE airports · '+h+' h '+mi+' min warning':'نموذج الضباب الذكي · METAR لـ 7 مطارات · إنذار قبل '+h+' س '+mi+' د')+'</div>'+
-        '<div class="tl"><div class="c">'+(en?'CLEAR':'صافٍ')+'<small>&nbsp;</small></div><div class="w">'+(en?'WATCH':'ترقّب')+'<small>'+A.watch+'</small></div>'+
-        '<div class="n">'+(en?'WARNING':'تحذير')+'<small>'+A.warning+'</small></div><div class="f">'+(en?'FOG':'ضباب')+'<small>'+A.fog+'</small></div></div></div>'+
-        '<div><div class="lbl">'+(en?'Plan '+PROF[prof]+' vs no coordination (same simulation)':'الخطة '+PROF[prof]+' مقابل عدم التنسيق (المحاكاة نفسها)')+'</div>'+
-        '<div class="imp">'+a.map(function(v,i){return cell(v,lab2[i],v>0)}).join('')+'</div></div>';
+      var tl=$('tlBox');tl.classList.remove('hide');$('kWin').classList.add('hide');$('kArr').classList.add('hide');
+      tl.innerHTML='<small>'+(en?'AI fog model · '+h+' h '+mi+' min warning':'نموذج الضباب الذكي · إنذار قبل '+h+' س '+mi+' د')+'</small>'+
+        '<div class="tl"><div class="c">'+(en?'CLEAR':'صافٍ')+'</div><div class="w">'+(en?'WATCH':'ترقّب')+'<small>'+A.watch+'</small></div>'+
+        '<div class="n">'+(en?'WARNING':'تحذير')+'<small>'+A.warning+'</small></div><div class="f">'+(en?'FOG':'ضباب')+'<small>'+A.fog+'</small></div></div>';
+      el.innerHTML='<div class="lbl">'+(en?'Plan '+pid+(pid===PROF[prof]?' (recommended)':'')+' vs no coordination':'الخطة '+pid+(pid===PROF[prof]?' (موصى بها)':'')+' مقابل عدم التنسيق')+'</div>'+
+        '<div class="imp">'+a.map(function(v,i){return cell(v,lab2[i],v>0)}).join('')+'</div>';
     }
-    PLANS=LIVE.plans[prof];acts=PLANS[PROF[prof]].acts.slice();render();
+    PLANS=LIVE.plans[prof][SET];acts=PLANS[PROF[prof]].acts.slice();render();
+    // chips: keep the flight actions in step with the newly chosen profile
+    var chipFix=function(){$('profiles').querySelectorAll('.chip').forEach(function(c){var h=c.onclick;c.onclick=function(){h();if(!sel){PLANS=LIVE.plans[prof][SET];acts=PLANS[PROF[prof]].acts.slice();render()}}})};
+    var np=$('newPlans').onclick,rs=$('reset').onclick;
+    $('newPlans').onclick=function(){SET=1-SET;setRec();PLANS=LIVE.plans[prof][SET];np();acts=PLANS[PROF[prof]].acts.slice();render()};
+    $('reset').onclick=function(){SET=0;setRec();PLANS=LIVE.plans[prof][SET];rs();acts=PLANS[PROF[prof]].acts.slice();render()};
     var ap=$('approve').onclick,rj=$('reject').onclick;
     $('approve').onclick=function(){var p=sel,m=acts.slice();ap();post({kind:'approve',plan:p,profile:prof,acts:m,modifications:mods()})};
     $('reject').onclick=function(){var p=sel;rj();post({kind:'reject',plan:p,profile:prof})};
   }).catch(function(){/* backend not running: illustrative data stays */});
+})();
+/* ---------- presentation fit: scale the whole page to fill the screen ----------
+   Finds the largest zoom at which the page, laid out across the full window width,
+   fits the window height in its TALLEST state: a plan selected with the longest
+   explanation, the approval banner and the dispatch steps showing. After every
+   change it re-checks and shrinks if needed. Scrolling is never disabled, so
+   nothing can be trapped off-screen. */
+(function(){
+  var DW=1240,Z=1,busy=false;
+  function worstNot(){                                   // longest real 'why not' paragraph
+    if(PLANS.A&&PLANS.A.not){var w='';['A','B','C'].forEach(function(p){var v=PLANS[p].not[lang].join('  ');if(v.length>w.length)w=v});return w}
+    return longest('not')+'  '+longest('not')}
+  function longest(prefix){var best='';['A','B','C'].forEach(function(p){var v=String(T[lang][prefix+p]||'');if(v.length>best.length)best=v});return best}
+  function measure(w){
+    // save classes of the containers and only the TEXT of plain text elements:
+    // never re-write the plan buttons, or their click handlers are lost
+    var b=document.body,ids=['exCard','plans','hint','okB','steps','modB','exWhy','exCost','exNot'],
+        txt={okB:1,exWhy:1,exCost:1,exNot:1},keep={};
+    ids.forEach(function(id){var e=$(id);keep[id]=[e.className,txt[id]?e.textContent:null]});
+    b.style.zoom=1;b.style.width=w+'px';
+    $('exCard').classList.add('hide');$('plans').classList.add('big');
+    var h1=b.scrollHeight;                                                     // overview
+    $('exCard').classList.remove('hide');$('plans').classList.remove('big');$('hint').classList.add('hide');
+    ['okB','steps'].forEach(function(id){$(id).classList.remove('hide')});  // approved state
+    $('modB').classList.add('hide');                     // replaced by the approval banner
+    if(!$('okB').textContent)$('okB').textContent='Plan A approved at 07:12:00. Instructions sent after human confirmation.';
+    $('exWhy').textContent=longest('why');$('exCost').textContent=longest('cost');
+    $('exNot').textContent=worstNot();
+    var h2=b.scrollHeight;                                                     // worst case
+    ids.forEach(function(id){var e=$(id);e.className=keep[id][0];if(keep[id][1]!==null)e.textContent=keep[id][1]});
+    return Math.max(h1,h2);
+  }
+  function fit(){
+    if(busy)return;busy=true;
+    var b=document.body;
+    try{
+      if(page!=='main'){var zf=Math.min(innerWidth/DW,1.3);b.style.zoom=zf;b.style.width=Math.floor(innerWidth/zf)+'px';Z=zf;return}
+      b.classList.toggle('wide',innerWidth/innerHeight>1.7);
+      var lo=0.5,hi=Math.min(1.8,innerWidth/1100);         // never narrower than 1100 px of layout
+      for(var k=0;k<10;k++){var z=(lo+hi)/2;if(measure(Math.floor(innerWidth/z))*z<=innerHeight-6)lo=z;else hi=z}
+      Z=lo;b.style.width=Math.floor(innerWidth/Z)+'px';b.style.zoom=Z;
+    }finally{busy=false}
+  }
+  function guard(){                                         // safety net after every change
+    if(page==='main'&&document.body.scrollHeight*Z>innerHeight+2)fit();
+  }
+  var last=page,_r=render;render=function(){_r();
+    if(page!==last){last=page;fit()}else guard()};
+  var rt;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(fit,120)});
+  window.dababFit=fit;
+  setTimeout(fit,300);setTimeout(fit,1500);                 // after fonts and live data arrive
 })();
 </script>
 </body>

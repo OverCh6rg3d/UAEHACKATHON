@@ -97,7 +97,40 @@ RISK_WEIGHTS = {"low_margin": 0.5, "long_hold": 0.3, "diverted": 0.2}
 RECOMMEND_WEIGHTS = {"objective": 0.6, "risk": 0.4}
 
 # ---- Confidence: share of sensitivity runs in which the same plan stays best ----
-SENSITIVITY_LEADS_MIN = [60, 90, 120, 150, 180]   # decision lead before fog onset
+SENSITIVITY_LEADS_MIN = [60, 120, 180]   # decision lead before fog onset
 SENSITIVITY_CAPACITY = [0.85, 1.0, 1.15]           # fog landing rate scaled by this
 SENSITIVITY_FUEL_SEEDS = [None, 7, 11]             # None = the scenario's own synthetic reserves;
                                                    # others redraw them (30-90 min) with that seed
+
+
+# ---- Card names: what is actually different about each plan, per profile ----
+# (the landing order comes from the profile, the diversion rule from the plan)
+CARD_NAMES = {
+    "min_delay": {"A": ("Land in arrival order", "الهبوط حسب ترتيب الوصول"),
+                  "B": ("Divert fuel-short flights", "تحويل الرحلات قليلة الوقود"),
+                  "C": ("Divert long holds", "تحويل الانتظارات الطويلة")},
+    "min_fuel": {"A": ("Heavy jets land first", "الطائرات الثقيلة أولاً"),
+                 "B": ("Heavy first, divert fuel-short", "الثقيلة أولاً وتحويل قليلة الوقود"),
+                 "C": ("Heavy first, early diversion", "الثقيلة أولاً وتحويل مبكر")},
+    "min_diversions": {"A": ("Lowest fuel lands first", "الأقل وقوداً تهبط أولاً"),
+                       "B": ("Fuel order, divert fuel-short", "حسب الوقود وتحويل قليلة الوقود"),
+                       "C": ("Fuel order, early diversion", "حسب الوقود وتحويل مبكر")},
+    "protect_connections": {"A": ("Connections land first", "رحلات الربط أولاً"),
+                            "B": ("Connections first, divert fuel-short", "الربط أولاً وتحويل قليلة الوقود"),
+                            "C": ("Connections first, early diversion", "الربط أولاً وتحويل مبكر")},
+}
+
+# ---- Second plan set, offered when the controller rejects all three ----
+ALT_STRATEGIES = {
+    "A": {"key": "air_hold_only", "label": "No ground holds", "label_ar": "دون انتظار أرضي",
+          "early": "none", "ground_delay": False},
+    "B": {"key": "divert_over_30", "label": "Divert holds over 30 min", "label_ar": "تحويل الانتظار فوق 30 دقيقة",
+          "early": "long_hold", "hold_limit_min": 30},
+    "C": {"key": "divert_over_75", "label": "Divert holds over 75 min", "label_ar": "تحويل الانتظار فوق 75 دقيقة",
+          "early": "long_hold", "hold_limit_min": 75},
+}
+
+# ---- Per-plan reliability: share of stress tests in which the plan's own key result
+# stays close to what the card shows (delay 5%, fuel and connections 10%, diversions 2 flights)
+RELIABILITY_TOLERANCE = {"avg_delay_min": 0.05, "fuel_kg": 0.10, "connecting_pax_at_risk": 0.10,
+                         "diversions_abs": 2}

@@ -98,46 +98,83 @@ def recommend(plans: dict, objective: str) -> tuple:
     return min(score, key=lambda k: (score[k], plans[k]["fuel_kg"])), score
 
 
-def confidence(sc, profile_id: str, base_choice: str) -> dict:
-    """Share of sensitivity runs (decision lead x fog landing rate) with the same recommendation."""
-    cfg, agree, runs = C.PROFILES[profile_id], 0, 0
+def whatif(sc, profile_id: str, strategies: dict, base: dict) -> dict:
+    """Stress tests: decision lead x fog landing rate x fuel-reserve draws.
+    Returns how often each plan comes out best (recommendation stability) and how
+    often each plan's own key result stays close to its card value (reliability)."""
+    cfg = C.PROFILES[profile_id]
+    obj, tol = cfg["objective"], C.RELIABILITY_TOLERANCE
+    wins = {k: 0 for k in strategies}
+    holds = {k: 0 for k in strategies}
+    vals = {k: [] for k in strategies}       # raw results, kept so the definition can be audited
+    runs = 0
     for cap in C.SENSITIVITY_CAPACITY:
-      for seed in C.SENSITIVITY_FUEL_SEEDS:
-        s2 = scaled(sc, cap, seed) if (cap != 1.0 or seed is not None) else sc
-        for lead in C.SENSITIVITY_LEADS_MIN:
-            ms = {k: metrics(make_plan(s2, cfg["sequence"], k, lead_min=lead, with_stands=False))
-                  for k in C.STRATEGIES}
-            runs += 1
-            agree += recommend(ms, cfg["objective"])[0] == base_choice
-    return {"pct": round(100 * agree / runs), "agree": agree, "runs": runs,
-            "method": "share of what-if runs where this plan stays recommended: decision lead "
+        for seed in C.SENSITIVITY_FUEL_SEEDS:
+            s2 = scaled(sc, cap, seed) if (cap != 1.0 or seed is not None) else sc
+            for lead in C.SENSITIVITY_LEADS_MIN:
+                ms = {k: metrics(make_plan(s2, cfg["sequence"], st, lead_min=lead, with_stands=False))
+                      for k, st in strategies.items()}
+                runs += 1
+                wins[recommend(ms, obj)[0]] += 1
+                for k in strategies:
+                    v, b = ms[k][obj], base[k][obj]
+                    vals[k].append(v)
+                    if obj == "diversions":
+                        ok = abs(v - b) <= tol["diversions_abs"]
+                    else:
+                        ok = abs(v - b) <= tol[obj] * max(abs(b), 1e-9)
+                    holds[k] += ok
+    return {"runs": runs,
+            "per_plan": {k: {"pct": round(100 * wins[k] / runs), "wins": wins[k]} for k in strategies},
+            "reliability": {k: round(100 * holds[k] / runs) for k in strategies},
+            "values": {k: [round(x, 1) for x in vals[k]] for k in strategies},
+            "method": "stress tests: decision lead "
                       f"{C.SENSITIVITY_LEADS_MIN} min x fog landing rate {C.SENSITIVITY_CAPACITY} x "
-                      f"{len(C.SENSITIVITY_FUEL_SEEDS)} draws of the synthetic fuel reserves"}
+                      f"{len(C.SENSITIVITY_FUEL_SEEDS)} draws of the synthetic fuel reserves. Reliability = share of "
+                      "tests where the plan's key result stays close to the card value (delay 5%, fuel and connections 10%, "
+                      "diversions 2 flights)."}
 
 
-def build_profile(sc, profile_id: str) -> dict:
+def build_set(sc, profile_id: str, strategies: dict, names: dict = None) -> dict:
+    import time
     cfg = C.PROFILES[profile_id]
     plans = []
-    for k, s in C.STRATEGIES.items():
-        p = make_plan(sc, cfg["sequence"], k)
-        plans.append({"id": k, "key": s["key"], "label": s["label"], "label_ar": s["label_ar"],
+    for k, st in strategies.items():
+        p = make_plan(sc, cfg["sequence"], st)
+        nm = (names or {}).get(k, (st["label"], st["label_ar"]))
+        plans.append({"id": k, "key": st["key"], "label": st["label"], "label_ar": st["label_ar"],
+                      "card_name": {"en": nm[0], "ar": nm[1]},
                       "metrics": metrics(p), "flights": flights_json(p)})
     best, score = recommend({p["id"]: p["metrics"] for p in plans}, cfg["objective"])
+    t = time.time()
+    wi = whatif(sc, profile_id, strategies, {p["id"]: p["metrics"] for p in plans})
+    print(f"  {sc.date} {cfg['label']} | {plans[0]['card_name']['en']} ...: recommended {best}, "
+          f"stays best {wi['per_plan'][best]['pct']}%, reliability {wi['reliability']}, "
+          f"{time.time() - t:.0f} s", flush=True)
     for p in plans:
         p["recommended"] = p["id"] == best
         p["score"] = score[p["id"]]
-        # dominated = another plan is at least as good on delay AND risk, and better on one
+        p["reliability_pct"] = wi["reliability"][p["id"]]
         p["dominated"] = any(
             o["metrics"]["avg_delay_min"] <= p["metrics"]["avg_delay_min"]
             and o["metrics"]["risk_index"] <= p["metrics"]["risk_index"]
             and (o["metrics"]["avg_delay_min"], o["metrics"]["risk_index"])
             != (p["metrics"]["avg_delay_min"], p["metrics"]["risk_index"])
             for o in plans if o is not p)
-        p["explanation"] = plan_text(p, [o for o in plans if o is not p], profile_id, p["recommended"])
+        p["explanation"] = plan_text(p, [o for o in plans if o is not p], profile_id, p["recommended"], strategies)
         p["explanation_source"] = "template"
-    return {"id": profile_id, "label": cfg["label"], "label_ar": cfg["label_ar"],
-            "objective": cfg["objective"], "recommended": best,
-            "confidence": confidence(sc, profile_id, best), "plans": plans}
+    conf = {"pct": wi["per_plan"][best]["pct"], "agree": wi["per_plan"][best]["wins"], "runs": wi["runs"],
+            "per_plan": wi["per_plan"], "reliability": wi["reliability"], "values": wi["values"],
+            "method": wi["method"]}
+    return {"recommended": best, "confidence": conf, "plans": plans}
+
+
+def build_profile(sc, profile_id: str) -> dict:
+    cfg = C.PROFILES[profile_id]
+    main = build_set(sc, profile_id, C.STRATEGIES, C.CARD_NAMES.get(profile_id))
+    alt = build_set(sc, profile_id, C.ALT_STRATEGIES)
+    return {"id": profile_id, "label": cfg["label"], "label_ar": cfg["label_ar"], "objective": cfg["objective"],
+            **main, "alternatives": alt}
 
 
 def add_llm(profiles: list, cache_path) -> dict:
