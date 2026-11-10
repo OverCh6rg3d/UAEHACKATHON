@@ -149,7 +149,7 @@
   .alert{padding:8px 16px}.card{padding:10px 12px}main{gap:10px;padding:10px 16px}.col{gap:10px}
   /* wide screens (16:9 and wider): the right column splits into two, so the page is shorter and scales up */
   body.wide main{grid-template-columns:minmax(0,1fr) 640px}
-  body.wide main>.col:last-child{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"imp feed" "net log";grid-template-rows:auto 1fr;align-content:stretch}
+  body.wide main>.col:last-child{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"imp feed" "net feed" "net log";grid-template-rows:auto auto 1fr;align-content:stretch}
   body.wide .c-imp{grid-area:imp}body.wide .c-feed{grid-area:feed}body.wide .c-net{grid-area:net}body.wide .c-log{grid-area:log}
   .c-log{display:flex;flex-direction:column;min-height:0}.c-log .log{height:190px;max-height:190px!important;overflow-y:auto}
   body.wide .c-log{align-self:start}body.wide .c-log .log{height:150px;max-height:150px!important}
