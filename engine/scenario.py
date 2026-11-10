@@ -51,6 +51,14 @@ def build_slots(capacity: dict, start, n_needed: int) -> list:
     return slots
 
 
+def scaled(sc: "Scenario", factor: float) -> "Scenario":
+    """Same scenario with the reduced (weather-hit) landing rates scaled, for sensitivity runs."""
+    from dataclasses import replace
+    cap = {h: (max(1, round(c * factor)) if c < C.NORMAL_CAPACITY_PER_H else c)
+           for h, c in sc.capacity.items()}
+    return replace(sc, capacity=cap, slots=build_slots(cap, sc.flights["eta"].min().floor("h"), len(sc.flights)))
+
+
 def load(date: str) -> Scenario:
     d = C.PROCESSED / f"scenario_{date}"
     if not d.exists():

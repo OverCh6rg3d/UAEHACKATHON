@@ -57,32 +57,45 @@ def est_flight_min(origin_icao) -> int:
     return 360
 
 
-# ---- Optimisation profiles: how the remaining choices are traded off ----
+# ---- Priority profiles (chosen by the controller) ----
+# A profile sets (1) who lands first when flights compete for a slot and
+# (2) which measure decides the recommended plan.
 # Safety is NOT a profile: medical and low-fuel flights always go first, and no
-# flight holds beyond its fuel limit, in every profile.
-# A diversion costs ~4 hours of delay, so fewest diversions also gives the lowest
-# average delay; "arrival_order" is kept as the no-re-prioritisation reference.
+# flight holds beyond its fuel limit, in every profile and every plan.
 PROFILES = {
-    "min_diversions": {
-        "label": "Fewest diversions",
-        "goal": "Land flights nearest their fuel limit first so the fewest must divert; also the lowest average delay.",
-        "divert_if_hold_over_min": None,
-    },
-    "protect_connections": {
-        "label": "Protect connections",
-        "goal": "Land flights carrying the most connecting passengers first.",
-        "divert_if_hold_over_min": None,
-    },
-    "min_fuel": {
-        "label": "Minimum fuel and CO2",
-        "goal": "Land the heaviest fuel burners first, so the least fuel is burned in the hold.",
-        # set a number (minutes) to also divert flights facing a longer projected hold
-        "divert_if_hold_over_min": None,
-    },
-    "arrival_order": {
-        "label": "Arrival order (reference)",
-        "goal": "First come, first served, no ground delays, same safety floor: shows what coordination adds.",
-        "divert_if_hold_over_min": None,
-        "ground_delay": False,
-    },
+    "min_delay": {"label": "Minimum delay", "label_ar": "أقل تأخير",
+                  "sequence": "arrival", "objective": "avg_delay_min"},
+    "min_fuel": {"label": "Minimum fuel / CO2", "label_ar": "أقل وقود / CO2",
+                 "sequence": "burn", "objective": "fuel_kg"},
+    "min_diversions": {"label": "Minimum diversions", "label_ar": "أقل تحويلات",
+                       "sequence": "deadline", "objective": "diversions"},
+    "protect_connections": {"label": "Protect connections", "label_ar": "حماية رحلات الربط",
+                            "sequence": "connections", "objective": "connecting_pax_at_risk"},
 }
+
+# ---- Recovery plans (three per profile): how early to divert ----
+#   none        divert only when a flight reaches its fuel limit
+#   unreachable also divert at once any flight that cannot land before its fuel limit
+#   long_hold   also divert any flight facing a hold longer than hold_limit_min
+STRATEGIES = {
+    "A": {"key": "hold_all", "label": "Hold all at DXB", "label_ar": "انتظار الجميع في دبي",
+          "early": "none"},
+    "B": {"key": "balanced", "label": "Balanced", "label_ar": "متوازنة",
+          "early": "unreachable"},
+    "C": {"key": "early_diversion", "label": "Early diversion", "label_ar": "تحويل مبكر",
+          "early": "long_hold", "hold_limit_min": 45},
+}
+
+# ---- Risk index (0-100, lower is better). A transparent formula, not a certified
+# safety metric: weighted share of flights in each condition.
+RISK_LOW_MARGIN_MIN = 15   # landing with less fuel margin than this
+RISK_LONG_HOLD_MIN = 30    # holding longer than this
+RISK_WEIGHTS = {"low_margin": 0.5, "long_hold": 0.3, "diverted": 0.2}
+
+# ---- Recommendation: the profile's own measure, tempered by risk ----
+# Each is scaled 0-1 across the three plans (0 = best). Lowest score is recommended.
+RECOMMEND_WEIGHTS = {"objective": 0.6, "risk": 0.4}
+
+# ---- Confidence: share of sensitivity runs in which the same plan stays best ----
+SENSITIVITY_LEADS_MIN = [60, 120, 180]     # decision lead before fog onset
+SENSITIVITY_CAPACITY = [0.9, 1.0, 1.1]     # fog landing rate scaled by this

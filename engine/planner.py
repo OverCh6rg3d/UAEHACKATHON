@@ -1,13 +1,13 @@
-"""Arrival sequencing under reduced capacity, with a hard fuel-safety floor and
-ground delay at origin.
+"""Arrival sequencing under reduced capacity, with a hard fuel-safety floor,
+ground delay at origin and three diversion strategies.
 
 Greedy slot allocation: at every landing slot the highest-priority waiting flight
-lands. Fast, deterministic and explainable; OR-Tools can replace the choice rule
-later without changing the inputs or outputs.
+lands. Fast, deterministic and explainable; a constraint solver can replace the
+choice rule later without changing the inputs or outputs.
 
 With ground delay on, planning runs in two passes:
   1. Sequence everyone; flights still on the ground at origin at decision time
-     have no fuel limit (they are not airborne yet), so they simply get a slot.
+     are limited only by the ground-delay cap, so they simply get a slot.
   2. Those flights now depart late enough to arrive just before their slot
      (ground delay, no fuel burned); everyone is sequenced again with real limits.
 """
@@ -17,7 +17,7 @@ from . import config as C
 from .diversions import Balancer
 from .stands import StandBoard
 
-URGENT_FUEL_MIN = 15  # a flight this close to its fuel limit jumps the queue
+URGENT_FUEL_MIN = 15   # a flight this close to its fuel limit jumps the queue
 SAFETY_BUFFER_MIN = 5  # never plan a landing closer than this to the fuel limit
 
 
@@ -25,25 +25,25 @@ def _burn(f) -> float:
     return C.HOLD_BURN_KG_MIN.get(f["size_class"], C.HOLD_BURN_KG_MIN["unknown"])
 
 
-def _profile_key(f, profile: str):
-    if profile == "min_diversions":
+def _key(f, sequence: str):
+    if sequence == "deadline":
         return (f["deadline"], f["eta"])
-    if profile == "protect_connections":
+    if sequence == "connections":
         return (-f["syn_connecting_pax"], f["eta"])
-    if profile == "min_fuel":
+    if sequence == "burn":
         # every slot is the same length, so landing the heaviest burner first
         # minimises total holding fuel
         return (-_burn(f), f["eta"])
-    return (f["eta"],)  # arrival_order
+    return (f["eta"],)  # arrival order
 
 
-def _sequence(sc, flights: list, profile: str, balancer) -> list:
+def _sequence(sc, flights: list, sequence: str, early: dict, balancer) -> list:
     """One pass of slot allocation. `flights` are dicts with eta and deadline."""
-    cfg = C.PROFILES[profile]
     flights = sorted(flights, key=lambda f: f["eta"])
     out, waiting, nxt = [], [], 0
     buf = pd.Timedelta(minutes=SAFETY_BUFFER_MIN)
     slots = [s for s in sc.slots if s >= flights[0]["eta"].floor("h")]
+    mode, limit = early.get("early", "none"), early.get("hold_limit_min")
 
     def divert(f, t, code, extra):
         to, facts = balancer.choose(f, t) if balancer else (None, {})
@@ -58,13 +58,20 @@ def _sequence(sc, flights: list, profile: str, balancer) -> list:
         while nxt < len(flights) and flights[nxt]["eta"] <= t:
             f = flights[nxt]
             nxt += 1
-            limit = cfg["divert_if_hold_over_min"]
-            if limit is not None and not f["syn_medical_priority"]:
-                projected = slots[min(i + len(waiting), len(slots) - 1)]
+            if mode != "none" and not f["syn_medical_priority"]:
+                ahead = sum(1 for w in waiting if _key(w, sequence) < _key(f, sequence))
+                projected = slots[min(i + ahead, len(slots) - 1)]
                 proj_hold = (projected - f["eta"]).total_seconds() / 60
-                if proj_hold > limit:
+                reserve = float(f["syn_fuel_reserve_min"])
+                if proj_hold > reserve - SAFETY_BUFFER_MIN:
+                    divert(f, f["eta"], "early_divert_unreachable",
+                           {"projected_hold_min": round(proj_hold), "fuel_reserve_min": int(reserve),
+                            "hold_fuel_saved_kg": round(max(0, reserve - SAFETY_BUFFER_MIN) * _burn(f))})
+                    continue
+                if mode == "long_hold" and proj_hold > limit:
                     divert(f, f["eta"], "early_divert_long_hold",
-                           {"projected_hold_min": round(proj_hold), "hold_limit_min": limit})
+                           {"projected_hold_min": round(proj_hold), "hold_limit_min": limit,
+                            "hold_fuel_saved_kg": round(proj_hold * _burn(f))})
                     continue
             waiting.append(f)
         # safety: anyone at the fuel limit (minus buffer) must leave for an alternate now
@@ -85,7 +92,7 @@ def _sequence(sc, flights: list, profile: str, balancer) -> list:
                 tier = 1
             else:
                 tier = 2
-            return (tier,) + _profile_key(f, profile)
+            return (tier,) + _key(f, sequence)
 
         best = min(waiting, key=rank)
         waiting.remove(best)
@@ -94,7 +101,7 @@ def _sequence(sc, flights: list, profile: str, balancer) -> list:
         out.append({**best, "action": "land", "landing": t, "hold_min": round(max(0, hold)),
                     "divert_to": None, "fly_min": 0,
                     "priority": ["medical", "low_fuel", "profile"][tier],
-                    "reason_code": ["medical_priority", "fuel_priority", f"profile_{profile}"][tier],
+                    "reason_code": ["medical_priority", "fuel_priority", f"sequence_{sequence}"][tier],
                     "facts": {"queue_length_at_landing": len(waiting) + 1,
                               "landing_rate_per_h": sc.capacity.get(t.hour, C.NORMAL_CAPACITY_PER_H),
                               "fuel_margin_min": round((best["deadline"] - t).total_seconds() / 60),
@@ -102,24 +109,24 @@ def _sequence(sc, flights: list, profile: str, balancer) -> list:
     return out
 
 
-def _ground_delay(sc, flights: list, profile: str) -> list:
+def _ground_delay(sc, flights: list, sequence: str, lead_min: int) -> list:
     """Pass 1 + ETA update for flights still on the ground at decision time."""
-    decision = pd.Timestamp(sc.summary["fog_start_local"]) - pd.Timedelta(minutes=C.DECISION_LEAD_MIN)
+    decision = pd.Timestamp(sc.summary["fog_start_local"]) - pd.Timedelta(minutes=lead_min)
+    cap = pd.Timedelta(minutes=C.GROUND_DELAY_MAX_MIN)
     for f in flights:
         f["est_flight_min"] = C.est_flight_min(f["origin_icao"])
         f["est_departure"] = f["eta"] - pd.Timedelta(minutes=f["est_flight_min"])
         f["ground_holdable"] = f["est_departure"] >= decision and not f["syn_medical_priority"]
     # on the ground there is no fuel limit, only the ground-delay cap (stops starvation)
-    cap = pd.Timedelta(minutes=C.GROUND_DELAY_MAX_MIN)
     trial = [{**f, "deadline": f["deadline"] + cap if f["ground_holdable"] else f["deadline"]}
              for f in flights]
-    slot = {r["aodbuniquefield"]: r["landing"] for r in _sequence(sc, trial, profile, None)
-            if r["action"] == "land"}
+    slot = {r["aodbuniquefield"]: r["landing"]
+            for r in _sequence(sc, trial, sequence, {"early": "none"}, None) if r["action"] == "land"}
     out = []
-    for f in flights:  # noqa: E741 - keep loop short
+    for f in flights:
         f = dict(f)
         f["ground_delay_min"] = 0
-        f["eta_normal"] = f["eta"]
+        f["decision_time"] = decision
         s = slot.get(f["aodbuniquefield"])
         if f["ground_holdable"] and s is not None:
             new_eta = min(max(f["eta"], s - pd.Timedelta(minutes=C.AIRBORNE_BUFFER_MIN)), f["eta"] + cap)
@@ -129,24 +136,20 @@ def _ground_delay(sc, flights: list, profile: str) -> list:
                 f["eta"] = new_eta
                 f["deadline"] = new_eta + pd.Timedelta(minutes=float(f["syn_fuel_reserve_min"]))
         out.append(f)
-    f_decision = decision
-    for f in out:
-        f["decision_time"] = f_decision
     return out
 
 
-def make_plan(sc, profile: str) -> pd.DataFrame:
-    cfg = C.PROFILES[profile]
+def make_plan(sc, sequence: str = "arrival", strategy: str = "A", ground_delay: bool = True,
+              lead_min: int = None, with_stands: bool = True) -> pd.DataFrame:
+    """Build one plan. sequence: arrival | deadline | burn | connections. strategy: A | B | C."""
     flights = sc.flights.to_dict("records")
-    use_gd = C.GROUND_DELAY and cfg.get("ground_delay", True)
-    if use_gd:
-        flights = _ground_delay(sc, flights, profile)
-    else:
-        for f in flights:
-            f["ground_delay_min"] = 0
-            f["eta_normal"] = f["eta"]
-    plan = pd.DataFrame(_sequence(sc, flights, profile, Balancer(sc.airports, sc.metar)))
-    plan["ground_delay_min"] = plan["ground_delay_min"].fillna(0)
+    for f in flights:
+        f["eta_normal"] = f["eta"]
+        f["ground_delay_min"] = 0
+    if ground_delay and C.GROUND_DELAY:
+        flights = _ground_delay(sc, flights, sequence, lead_min or C.DECISION_LEAD_MIN)
+    plan = pd.DataFrame(_sequence(sc, flights, sequence, C.STRATEGIES[strategy],
+                                  Balancer(sc.airports, sc.metar)))
     for idx in plan.index:
         g = plan.at[idx, "ground_delay_min"]
         if g:
@@ -156,13 +159,15 @@ def make_plan(sc, profile: str) -> pd.DataFrame:
     plan["in_block"] = plan["landing"] + pd.Timedelta(minutes=C.TAXI_IN_MIN)
     plan["delay_min"] = ((plan["in_block"] - plan["scheduledinblocktime"]).dt.total_seconds() / 60).round()
     plan.loc[plan["action"] != "land", "delay_min"] = C.DIVERTED_DELAY_MIN
+    plan["new_stand"] = None
+    plan["stand_facts"] = None
+    if not with_stands:
+        return plan
 
     # stands, around already-parked aircraft. Pass 1 keeps every original stand that
     # still works; pass 2 moves only the rest, so moves never cascade.
     horizon = plan["in_block"].max() + pd.Timedelta(hours=24)
     board = StandBoard(sc.stands, sc.parked, horizon)
-    plan["new_stand"] = None
-    plan["stand_facts"] = None
     order = plan[plan["action"] == "land"].sort_values("in_block").index
     t_out = plan["in_block"] + pd.to_timedelta(plan["turn_min"], unit="m")
     for idx in order:
