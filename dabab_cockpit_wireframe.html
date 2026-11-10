@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DABAB Cockpit Wireframe</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#151c25;--line:#2b3644;--text:#f2f5f8;--dim:#8d9aab;--amber:#ffb020;--green:#2fd27a;--red:#ff5a5a;}
+  *{box-sizing:border-box;margin:0}
+  body{background:#444;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;font-family:Arial,Helvetica,Tahoma,sans-serif;color:var(--text)}
+  /* 6in x 4in at 96 dpi */
+  .screen{width:6in;height:4in;background:var(--bg);border:3px solid #000;border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+  .top{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--panel);border-bottom:2px solid var(--line);font-weight:700;font-size:18px}
+  .top .wx{color:var(--amber)}
+  .top .trend{color:var(--red);font-size:22px}
+  .top .r{display:flex;align-items:center;gap:10px}
+  .top .t{color:var(--dim);font-size:16px;direction:ltr;unicode-bidi:isolate}
+  .lang{height:32px;min-width:48px;border-radius:6px;border:2px solid var(--line);background:var(--bg);color:var(--text);font:700 15px Arial,Tahoma;cursor:pointer}
+  .body{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 12px;gap:6px}
+  .qrow{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--dim);letter-spacing:.4px}
+  .count{color:var(--amber);font-weight:700;font-size:16px}
+  .count.now{color:var(--red)}
+  .opt{flex:1;min-height:0;display:flex;align-items:center;gap:10px;background:var(--panel);border:3px solid var(--line);border-radius:8px;padding:0 10px;cursor:pointer;color:var(--text);text-align:start;font:inherit}
+  .opt .k{width:38px;height:38px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;flex:none}
+  .opt .m{flex:1;min-width:0}
+  .opt .m b{display:block;font-size:20px;white-space:nowrap}
+  .opt .m span{font-size:14px;color:var(--dim);white-space:nowrap}
+  .opt.rec .m span{color:var(--green)}
+  .opt .n{flex:none;width:104px;text-align:end}
+  .opt .n b{font-size:20px}
+  .fuel{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:var(--dim)}
+  .fbar{position:relative;flex:1;height:10px;background:#0b0f14;border:1px solid var(--line);border-radius:3px}
+  .fbar i{position:absolute;inset-block:0;inset-inline-start:0;border-radius:2px;background:var(--green)}
+  .fbar i.low{background:var(--amber)}
+  .fbar u{position:absolute;top:-3px;bottom:-3px;inset-inline-start:30%;width:2px;background:var(--text)}
+  .opt.rec{border-color:var(--green)}
+  .opt.sel{border-color:var(--amber);background:#2a2210}
+  .bar{height:62px;flex:none;display:flex;gap:10px;padding:0 12px 10px}
+  .btn{flex:1;border-radius:8px;border:0;font:700 24px Arial,Tahoma;cursor:pointer}
+  .ok{background:var(--green);color:#04210f}
+  .ok:disabled{background:#26332b;color:#5d6f63;cursor:not-allowed}
+  .no{flex:0 0 38%;background:var(--panel);color:var(--text);border:3px solid var(--line)}
+  .done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 12px}
+  .done .big{font-size:38px;font-weight:700;color:var(--green)}
+  .done .big.red{color:var(--red)}
+  .done .sub{font-size:20px}
+  .steps{display:flex;gap:6px;width:100%;margin-top:6px}
+  .step{flex:1;border:2px solid var(--line);border-radius:6px;padding:8px 4px;font-size:14px;color:var(--dim)}
+  .step.on{border-color:var(--green);color:var(--text)}
+  .step.on::before{content:"\2713  ";color:var(--green);font-weight:700}
+  .hide{display:none}
+  .note{color:#ddd;font-size:13px;max-width:6in;text-align:center}
+</style>
+</head>
+<body>
+<div class="screen" id="s1">
+  <div class="top">
+    <span>DXB &middot; <span class="wx" data-t="wx"></span> <span class="trend" title="worsening">&darr;</span></span>
+    <span class="r"><span class="t">07:12 LT</span><button class="lang" data-lang></button></span>
+  </div>
+  <div class="body">
+    <div class="qrow"><span data-t="q"></span><span class="count" id="count"></span></div>
+    <button class="opt rec" data-i="A"><div class="k">A</div><div class="m"><b data-t="aT"></b><span data-t="aS"></span></div><div class="n"><b data-t="aD"></b><div class="fuel"><span data-t="fuel"></span><div class="fbar"><i style="width:78%"></i><u></u></div></div></div></button>
+    <button class="opt" data-i="B"><div class="k">B</div><div class="m"><b data-t="bT"></b><span data-t="bS"></span></div><div class="n"><b data-t="bD"></b><div class="fuel"><span data-t="fuel"></span><div class="fbar"><i style="width:60%"></i><u></u></div></div></div></button>
+    <button class="opt" data-i="C"><div class="k">C</div><div class="m"><b data-t="cT"></b><span data-t="cS"></span></div><div class="n"><b data-t="cD"></b><div class="fuel"><span data-t="fuel"></span><div class="fbar"><i class="low" style="width:40%"></i><u></u></div></div></div></button>
+  </div>
+  <div class="bar"><button class="btn no" id="no" data-t="decline"></button><button class="btn ok" id="ok" disabled></button></div>
+</div>
+
+<div class="screen hide" id="s2">
+  <div class="top">
+    <span>DXB &middot; <span class="wx" data-t="wx"></span> <span class="trend">&darr;</span></span>
+    <span class="r"><span class="t">07:12 LT</span><button class="lang" data-lang></button></span>
+  </div>
+  <div class="done">
+    <div class="big" id="d1"></div>
+    <div class="sub" id="d2"></div>
+    <div class="steps" id="steps">
+      <div class="step" id="st1"></div><div class="step" id="st2"></div><div class="step" id="st3"></div>
+    </div>
+  </div>
+  <div class="bar"><button class="btn no" id="back" data-t="back"></button></div>
+</div>
+
+<p class="note">Wireframe, 6 in &times; 4 in. One decision per screen, 3 options max. The white tick on each fuel bar is the reserve. All numbers, fuel values, the countdown and the ATC/stand confirmations are illustrative and simulated. Arabic text needs a native-speaker check. The pilot always has final authority.</p>
+
+<script>
+var T={
+ en:{wx:'FOG  RVR 150 m',q:'ATC PROPOSES — TAP ONE',decide:'DECIDE IN ',now:'DECIDE NOW',fuel:'FUEL',
+  aT:'HOLD & LAND DXB',aS:'Why: least delay · CAT III',aD:'+12 min',
+  bT:'DIVERT DWC',bS:'CAT III · fog there too',bD:'+25 min',
+  cT:'DIVERT AUH',cS:'CAT III · clear',cD:'+40 min',
+  accept:'ACCEPT',decline:'DECLINE',back:'BACK',accepted:'ACCEPTED',declined:'DECLINED',
+  rA:'Hold 12 min, land RWY 30R',rB:'Divert to DWC',rC:'Divert to AUH',rNo:'ATC will send new options',
+  st1:'Sent to ATC',st2:'ATC confirmed',sA:'Stand B12',sB:'DWC stand',sC:'AUH stand',other:'AR'},
+ ar:{wx:'ضباب  الرؤية 150 م',q:'مقترح المراقبة الجوية — اختر واحداً',decide:'القرار خلال ',now:'قرّر الآن',fuel:'وقود',
+  aT:'انتظار ثم هبوط DXB',aS:'السبب: أقل تأخير · CAT III',aD:'‎+12 د',
+  bT:'تحويل إلى DWC',bS:'CAT III · ضباب هناك أيضاً',bD:'‎+25 د',
+  cT:'تحويل إلى AUH',cS:'CAT III · صافٍ',cD:'‎+40 د',
+  accept:'قبول',decline:'رفض',back:'رجوع',accepted:'تم القبول',declined:'تم الرفض',
+  rA:'انتظار 12 دقيقة ثم الهبوط على المدرج 30R',rB:'تحويل إلى DWC',rC:'تحويل إلى AUH',rNo:'سترسل المراقبة الجوية خيارات جديدة',
+  st1:'أُرسل إلى المراقبة',st2:'أكدت المراقبة',sA:'الموقف B12',sB:'موقف في DWC',sC:'موقف في AUH',other:'EN'}
+};
+var lang='en',sel=null,result=null,secs=240,stepN=0,timers=[];
+var $=function(id){return document.getElementById(id)};
+var opts=document.querySelectorAll('.opt'),ok=$('ok');
+
+function render(){
+  var t=T[lang];
+  document.querySelectorAll('.screen').forEach(function(s){s.dir=lang==='ar'?'rtl':'ltr'});
+  document.querySelectorAll('[data-t]').forEach(function(e){e.textContent=t[e.dataset.t]});
+  document.querySelectorAll('[data-lang]').forEach(function(e){e.textContent=t.other});
+  ok.textContent=t.accept+(sel?' '+sel:'');
+  var c=$('count');c.classList.toggle('now',secs<=0);
+  c.textContent=secs<=0?t.now:t.decide+Math.floor(secs/60)+':'+('0'+secs%60).slice(-2);
+  if(result){
+    var no=result==='no';
+    $('d1').textContent=no?t.declined:t.accepted+' '+result;
+    $('d1').classList.toggle('red',no);
+    $('d2').textContent=no?t.rNo:t['r'+result];
+    $('steps').classList.toggle('hide',no);
+    $('st1').textContent=t.st1;$('st2').textContent=t.st2;$('st3').textContent=no?'':t['s'+result];
+    ['st1','st2','st3'].forEach(function(id,i){$(id).classList.toggle('on',i<stepN)});
+  }
+  $('s1').classList.toggle('hide',!!result);$('s2').classList.toggle('hide',!result);
+}
+function finish(r){
+  result=r;stepN=0;render();
+  if(r!=='no')[600,1800,3000].forEach(function(ms,i){timers.push(setTimeout(function(){stepN=i+1;render()},ms))});
+}
+opts.forEach(function(o){o.onclick=function(){opts.forEach(function(x){x.classList.remove('sel')});o.classList.add('sel');sel=o.dataset.i;ok.disabled=false;render()}});
+ok.onclick=function(){if(sel)finish(sel)};
+$('no').onclick=function(){finish('no')};
+$('back').onclick=function(){timers.forEach(clearTimeout);timers=[];result=null;sel=null;secs=240;ok.disabled=true;opts.forEach(function(x){x.classList.remove('sel')});render()};
+document.querySelectorAll('[data-lang]').forEach(function(b){b.onclick=function(){lang=lang==='en'?'ar':'en';render()}});
+setInterval(function(){if(!result&&secs>0){secs--;render()}},1000);
+render();
+</script>
+</body>
+</html>

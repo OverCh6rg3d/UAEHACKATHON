@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DABAB ATC Panel</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#151c25;--panel2:#1b2430;--line:#2b3644;--text:#f2f5f8;--dim:#8d9aab;--amber:#ffb020;--green:#2fd27a;--red:#ff5a5a;--blue:#5aa9ff;}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--text);font:14px/1.35 Arial,Helvetica,Tahoma,sans-serif;min-width:1180px}
+  button,select{font:inherit;color:inherit}
+  h2{font-size:12px;letter-spacing:.8px;color:var(--dim);text-transform:uppercase;font-weight:700;margin-bottom:8px}
+  .tag{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+  .tag.real{border-color:#2d6b4a;color:var(--green)}
+  .tag.sim{border-color:#6b5320;color:var(--amber)}
+  .tag.bad{border-color:#7a3030;color:var(--red)}
+
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);border-bottom:2px solid var(--line)}
+  header .logo{font-size:22px;font-weight:700;letter-spacing:1px}
+  header .logo span{color:var(--amber)}
+  header .sub{color:var(--dim)}
+  header .sp{flex:1}
+  header .clock{font-size:20px;font-weight:700;direction:ltr}
+  .hbtn{height:34px;padding:0 12px;border-radius:6px;border:2px solid var(--line);background:var(--bg);font-weight:700;cursor:pointer}
+  .hbtn.tab.on{border-color:var(--blue);background:#12263d;color:#cfe5ff}
+  .flights{margin-top:12px}
+
+  .alert{display:flex;align-items:stretch;gap:10px;padding:10px 16px;background:#2a2210;border-bottom:2px solid #6b5320}
+  .alert .ttl{display:flex;flex-direction:column;justify-content:center;min-width:230px}
+  .alert .ttl b{font-size:22px;color:var(--amber)}
+  .kpi{flex:1;background:var(--bg);border:1px solid #6b5320;border-radius:8px;padding:6px 12px}
+  .kpi small{display:block;color:var(--dim);font-size:12px}
+  .kpi b{font-size:22px;direction:ltr;display:inline-block}
+  .kpi em{font-style:normal;color:var(--dim);font-size:13px}
+
+  main{display:grid;grid-template-columns:330px minmax(0,1fr) 340px;gap:12px;padding:12px 16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+  .col{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .hrow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .hrow h2{margin:0}
+
+  svg text{fill:var(--dim);font:11px Arial}
+  .legend{display:flex;gap:12px;font-size:12px;color:var(--dim);margin-top:4px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:4px}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;text-align:start;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:700}
+  td{padding:7px 8px;border-bottom:1px solid #1f2935;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  .yes{color:var(--green);font-weight:700}.nope{color:var(--red);font-weight:700}
+  .num{direction:ltr;unicode-bidi:isolate}
+
+  .floor li{list-style:none;padding:3px 0}
+  .floor li::before{content:"\2713";color:var(--green);font-weight:700;margin-inline-end:8px}
+
+  .profiles{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:9px 14px;border-radius:20px;border:2px solid var(--line);background:var(--bg);cursor:pointer;font-weight:700}
+  .chip.on{border-color:var(--blue);background:#12263d;color:#cfe5ff}
+
+  .plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .plan{background:var(--panel2);border:3px solid var(--line);border-radius:8px;padding:10px;cursor:pointer;text-align:start;display:flex;flex-direction:column;gap:6px}
+  .plan.sel{border-color:var(--amber)}
+  .plan.rej{opacity:.4}
+  .plan .ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .plan .k{width:32px;height:32px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex:none}
+  .plan .nm{font-size:16px;font-weight:700;flex:1}
+  .plan .rec{font-size:11px;font-weight:700;color:#04210f;background:var(--green);padding:2px 6px;border-radius:4px}
+  .plan,.plan .k,.plan .nm,.plan .mt{transition:all .25s ease}
+  .plan .pw{display:none;color:var(--dim);font-size:14px;border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+  .plans.big .plan{padding:18px;gap:12px;min-height:330px}
+  .plans.big .plan:hover{border-color:#5b6b80}
+  .plans.big .k{width:48px;height:48px;font-size:24px}
+  .plans.big .nm{font-size:21px}
+  .plans.big .mt{font-size:16px;row-gap:9px}
+  .plans.big .pw{display:block}
+  .hint{color:var(--dim);font-size:14px;margin-top:10px;text-align:center}
+  .plan.rej{cursor:not-allowed}
+  .allrej{display:flex;align-items:center;gap:14px;margin-top:12px;padding:12px 14px;border-radius:8px;background:#2a1414;border:2px solid #7a3030}
+  .allrej div{flex:1}
+  .allrej b{display:block;color:var(--red);font-size:17px;margin-bottom:2px}
+  .allrej .btn{flex:0 0 220px;height:48px;font-size:16px}
+  #exCard{animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .mt{display:grid;grid-template-columns:1fr auto;row-gap:3px;font-size:13px}
+  .mt span{color:var(--dim)}
+  .mt b{text-align:end}
+  .best{color:var(--green)}
+
+  .explain{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:14px}
+  .explain h3{font-size:18px;margin-bottom:6px}
+  .explain p{margin-bottom:6px}
+  .explain .lbl{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .conf{text-align:center;border-inline-start:1px solid var(--line);padding-inline-start:14px}
+  .conf b{display:block;font-size:34px;color:var(--green)}
+  .cbar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px}
+  .cbar i{display:block;height:100%;background:var(--green)}
+  .acts{display:flex;gap:10px;margin-top:10px}
+  .btn{flex:1;height:52px;border-radius:8px;border:0;font-weight:700;font-size:18px;cursor:pointer}
+  .approve{background:var(--green);color:#04210f;flex:2}
+  .modify{background:var(--panel2);border:2px solid var(--blue);color:#cfe5ff}
+  .modify.on{background:#12263d}
+  .reject{background:var(--panel2);border:2px solid var(--red);color:#ffc9c9}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .banner{margin-top:10px;padding:8px 10px;border-radius:6px;font-weight:700}
+  .banner.ok{background:#12301f;border:1px solid #2d6b4a;color:var(--green)}
+  .banner.mod{background:#12263d;border:1px solid #2c5a8f;color:#cfe5ff;font-weight:400}
+  .steps{display:flex;gap:6px;margin-top:8px}
+  .step{flex:1;border:2px solid var(--line);border-radius:6px;padding:7px 6px;font-size:13px;color:var(--dim);text-align:center}
+  .step.on{border-color:var(--green);color:var(--text)}
+  .step.on::before{content:"\2713  ";color:var(--green);font-weight:700}
+
+  .log{max-height:230px;overflow:auto;font-size:13px}
+  .log div{padding:6px 0;border-bottom:1px solid #1f2935}
+  .log div:last-child{border:0}
+  .log time{color:var(--dim);margin-inline-end:6px;direction:ltr;unicode-bidi:isolate}
+  .log .a{font-weight:700}
+  .empty{color:var(--dim)}
+
+  .flights{margin:0 16px 12px}
+  .act-h{color:var(--amber);font-weight:700}
+  .act-d{color:var(--blue);font-weight:700}
+  .fm{display:inline-block;width:60px;height:8px;background:var(--bg);border:1px solid var(--line);border-radius:3px;vertical-align:middle;margin-inline-end:6px;overflow:hidden}
+  .fm i{display:block;height:100%;background:var(--green)}
+  .fm i.low{background:var(--amber)}
+  td select{background:var(--bg);border:2px solid var(--blue);border-radius:6px;padding:4px 6px}
+  td select:disabled{border-color:var(--line);opacity:.6}
+  footer{padding:0 16px 16px;color:var(--dim);font-size:12px}
+  .hide{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DABAB <span>&#1590;&#1576;&#1575;&#1576;</span></div>
+  <div class="sub" data-t="sub"></div>
+  <span class="tag sim" data-t="replay"></span>
+  <button class="hbtn tab" id="tabMain" data-t="tabMain"></button>
+  <button class="hbtn tab" id="tabFl" data-t="tabFl"></button>
+  <div class="sp"></div>
+  <div class="clock" id="clock"></div>
+  <button class="hbtn" id="reset" data-t="reset"></button>
+  <button class="hbtn" id="lang"></button>
+</header>
+
+<section class="alert">
+  <div class="ttl"><b data-t="alertT"></b><span data-t="alertS"></span></div>
+  <div class="kpi"><small data-t="k1"></small><b>193 m</b></div>
+  <div class="kpi"><small data-t="k2"></small><b>07:04 &ndash; 08:30</b></div>
+  <div class="kpi"><small data-t="k3"></small><b>15</b> <em data-t="k3b"></em></div>
+  <div class="kpi"><small data-t="k4"></small><b>50</b> <em data-t="k4b"></em></div>
+</section>
+
+<main id="main">
+  <!-- LEFT -->
+  <div class="col">
+    <div class="card">
+      <div class="hrow"><h2 data-t="hNet"></h2><span class="tag real" data-t="real"></span></div>
+      <table id="net"></table>
+    </div>
+  </div>
+
+  <!-- CENTRE -->
+  <div class="col">
+    <div class="card">
+      <div class="hrow"><h2 data-t="hProf"></h2></div>
+      <div class="profiles" id="profiles"></div>
+    </div>
+    <div class="card">
+      <div class="hrow"><h2 data-t="hPlans"></h2><span class="tag sim" data-t="illus"></span></div>
+      <div class="plans" id="plans"></div>
+      <div class="hint" id="hint" data-t="hint"></div>
+      <div class="allrej hide" id="allRej">
+        <div><b data-t="arT"></b><span data-t="arS"></span></div>
+        <button class="btn modify" id="newPlans" data-t="arBtn"></button>
+      </div>
+    </div>
+    <div class="card" id="exCard">
+      <div class="explain">
+        <div>
+          <h3 id="exT"></h3>
+          <div class="lbl" data-t="why"></div><p id="exWhy"></p>
+          <div class="lbl" data-t="cost"></div><p id="exCost"></p>
+          <div class="lbl" data-t="whyNot"></div><p id="exNot"></p>
+        </div>
+        <div class="conf"><div class="lbl" data-t="conf"></div><b id="exConf" class="num"></b><div class="cbar"><i id="exBar"></i></div></div>
+      </div>
+      <div class="banner mod hide" id="modB"></div>
+      <div class="acts">
+        <button class="btn approve" id="approve"></button>
+        <button class="btn modify" id="modify" data-t="modify"></button>
+        <button class="btn reject" id="reject" data-t="reject"></button>
+      </div>
+      <div class="banner ok hide" id="okB"></div>
+      <div class="steps hide" id="steps"><div class="step" data-t="s1"></div><div class="step" data-t="s2"></div><div class="step" data-t="s3"></div><div class="step" data-t="s4"></div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <div class="card">
+      <div class="hrow"><h2 data-t="hTrade"></h2><span class="tag sim" data-t="illus"></span></div>
+      <svg id="scatter" viewBox="0 0 310 200" width="100%"></svg>
+      <p style="color:var(--dim);font-size:12px;margin-top:4px" data-t="tradeN"></p>
+    </div>
+    <div class="card">
+      <div class="hrow"><h2 data-t="hLog"></h2></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</main>
+
+<section class="card flights hide" id="flPage">
+  <div class="hrow"><h2><span data-t="hFl"></span> &middot; <span id="flPlan"></span></h2><span><span class="tag real" data-t="flReal"></span> <span class="tag sim" data-t="flSim"></span></span></div>
+  <div class="banner mod hide" id="modB2" style="margin:0 0 10px"></div>
+  <div style="margin-bottom:10px"><button class="hbtn" id="flBack" style="height:44px;font-size:16px;border-color:var(--blue);color:#cfe5ff"></button></div>
+  <table id="fl"></table>
+</section>
+
+<footer data-t="foot"></footer>
+
+<script>
+/* ---------- data ---------- */
+// REAL: Dubai Airports flight information (arrivals), Data.Dubai, DXB, 3 Jan 2026. Landings per clock hour.
+// Normal = median of the same hour on the 28 other days within +/-14 days.
+var HOURS=[4,5,6,7,8,9,10,11,12], FOG=[23,31,31,15,19,28,29,32,28], NORM=[30,35,34.5,28,26.5,17.5,19.5,25,35];
+// REAL: flight, origin, aircraft, stand, scheduled in-block and actual landing delay (min) from the same dataset.
+// SYNTHETIC (syn): fuel margin above reserve (min), connecting passengers, medical priority.
+var FL=[
+ ['EK 086','ZRH','B77W','B23','07:05',137,38,84,0],
+ ['FZ 1016','VKO','B738','C35','07:05',225,22,12,0],
+ ['EK 533','COK','B77W','F16','07:05',99,41,96,1],
+ ['EK 569','BLR','A388','D1','07:10',124,55,143,0],
+ ['EK 068','STN','B77W','B25','07:10',64,47,77,0],
+ ['FZ 952','VKO','B738','C39','07:15',73,19,9,0],
+ ['FZ 446','BOM','B38M','E23','07:15',350,16,14,0],
+ ['EK 076','CDG','A388','F21','07:20',127,62,168,0],
+ ['EK 010','LGW','A388','D6','07:20',112,58,152,0],
+ ['FZ 756','IST','B738','E9R','07:20',235,24,11,0],
+ ['LH 638','MUC','A359','C64','07:30',216,29,61,0],
+ ['BA 105','LHR','B78X','C54','07:40',180,33,48,0]
+];
+// ILLUSTRATIVE plans (the optimizer is not built yet). H = hold minutes, otherwise divert to airport.
+var PLANS={
+ A:{delay:34,div:0,conf:2,fuel:18,co2:57,conn:310,risk:30,cf:71,acts:[20,25,15,30,30,35,35,40,40,45,45,50],conflict:[5,9]},
+ B:{delay:22,div:3,conf:0,fuel:12,co2:38,conn:190,risk:24,cf:84,acts:[15,'DWC',10,20,20,25,'DWC',25,30,30,'AUH',35],conflict:[]},
+ C:{delay:15,div:6,conf:0,fuel:14,co2:44,conn:240,risk:33,cf:76,acts:[10,'DWC',10,15,15,'DWC','DWC',20,20,'DWC','AUH','AUH'],conflict:[]}
+};
+var DOM={delay:38,risk:46}; // plan D, dominated, filtered out
+var PROF={delay:'C',fuel:'B',div:'A',conn:'B'};
+// REAL: ILS category from GCAA eAIP (team script 04). DXB and DWC fog on 3 Jan from METAR.
+var NET=[['DXB','CAT III',1,'fog'],['DWC','CAT III',1,'fog'],['AUH','CAT III',1,''],['SHJ','CAT I',0,''],['RKT','—',0,''],['FJR','—',0,''],['AAN','—',0,'']];
+
+/* ---------- text ---------- */
+var T={
+en:{sub:'ATC decision panel · DXB approach',replay:'REPLAY · 3 Jan 2026 · simulated',reset:'Reset',other:'العربية',
+ alertT:'FOG · LOW VISIBILITY',alertS:'Landing rate cut. 3 recovery plans ready.',
+ k1:'Minimum visibility (METAR)',k2:'Fog window (METAR)',k3:'Landings this hour',k3b:'vs 28 normal',k4:'Arrivals scheduled 06:45–08:15',k4b:'12 on the Flights page',tabMain:'Decision',hint:'Select a plan to see why DABAB recommends it, then approve, modify or reject.',tabFl:'Flights (12)',backP:'← Back to plans',
+ real:'REAL DATA',illus:'ILLUSTRATIVE',hLand:'Landings per hour · DXB',lgFog:'3 Jan 2026 (fog 07–08)',lgNorm:'Normal days (median)',
+ hNet:'UAE airports · fog capability',nA:'Airport',nI:'ILS',nF:'Usable in fog',nD:'Diverted here',yes:'YES',no:'NO',fog:'fog',
+ arT:'All 3 plans rejected',arS:'No DABAB plan is active. Traffic continues under standard ATC procedures until a plan is approved.',arBtn:'Request new plans',lReq:'Requested new plans (demo: same plans regenerated)',
+ hProf:'Priority profile · chosen by the controller',pdelay:'Minimum delay',pfuel:'Minimum fuel / CO₂',pdiv:'Minimum diversions',pconn:'Protect connections',
+ hPlans:'Recovery plans',rec:'RECOMMENDED',rejd:'REJECTED',
+ nmA:'Hold all at DXB',nmB:'Balanced',nmC:'Early diversion',
+ mDelay:'Avg delay',mDiv:'Diversions',mConf:'Stand conflicts',mFuel:'Extra fuel',mCo2:'Extra CO₂',mConn:'Connections at risk',min:'min',t:'t',
+ why:'Why this plan',cost:'What it costs',whyNot:'Why not the others',conf:'Confidence',
+ whyA:'Every flight lands at DXB on the reduced CAT III rate. No passengers end up at another airport.',
+ costA:'Longest holds (avg 34 min), most fuel burned, and 2 stand conflicts to fix.',
+ whyB:'Diverts only the 3 flights with the lowest fuel margin or longest wait. The rest hold for a shorter time.',
+ costB:'3 flights land at DWC or AUH and need ground transfer or a later repositioning.',
+ whyC:'Diverts 6 flights early, so the DXB queue clears fastest and the average delay is lowest.',
+ costC:'6 diversions. DWC is also in fog, so its capacity is tighter.',
+ notA:'A: longest delay and highest fuel burn.',notB:'B: slower than C on delay, more diversions than A.',notC:'C: twice the diversions of B and a higher risk score.',
+ approve:'APPROVE PLAN',modify:'MODIFY',modifyOn:'DONE EDITING',reject:'REJECT',
+ modB:'Modified: {n} change(s). Metrics are not recomputed in this demo.',
+ okB:'Plan {p} approved at {t}. Instructions sent after human confirmation.',
+ s1:'Tower / Approach',s2:'Airport AODB · stands',s3:'Airline ops centres',s4:'Cockpit panels',
+ hTrade:'Delay vs risk',xAx:'Average delay (min)',yAx:'Risk score',tradeN:'D is worse on every measure and is filtered out. A stays because it has the fewest diversions.',
+ hLog:'Audit log',logE:'No decisions yet.',user:'ATC supervisor (demo)',
+ lSel:'Profile set to',lApp:'Approved plan',lRej:'Rejected plan',lMod:'Changed',lWith:'with {n} change(s)',lReset:'Demo reset',
+ hFl:'Affected arrivals',flReal:'REAL: flight, origin, type, stand, time, actual delay',flSim:'ILLUSTRATIVE: plan action · SYNTHETIC: fuel, connections, medical',
+ cF:'Flight',cO:'From',cT:'Type',cS:'Sched',cA:'Plan action',cSt:'Stand',cFu:'Fuel margin (syn)',cC:'Connecting pax (syn)',cP:'Flags',cR:'Actual delay that day',
+ hold:'Hold',divert:'Divert',med:'MEDICAL (syn)',confl:'STAND CONFLICT',locked:'A380: locked by safety floor',
+ foot:'Real data: Dubai Airports flight information (arrivals), Data.Dubai, DXB, 3 Jan 2026; OMDB METAR via Iowa Environmental Mesonet; ILS categories from the GCAA eAIP. Plans, plan metrics, risk score, confidence and dispatch confirmations are illustrative until the optimizer is connected. Fuel, connecting passengers and medical priority are synthetic. Arabic text needs a native-speaker check.'},
+ar:{sub:'لوحة قرار المراقبة الجوية · اقتراب DXB',replay:'إعادة · 3 يناير 2026 · محاكاة',reset:'إعادة ضبط',other:'English',
+ alertT:'ضباب · رؤية منخفضة',alertS:'انخفض معدل الهبوط. 3 خطط جاهزة.',
+ k1:'أدنى رؤية (METAR)',k2:'فترة الضباب (METAR)',k3:'الهبوط هذه الساعة',k3b:'مقابل 28 في الأيام العادية',k4:'رحلات قادمة مجدولة 06:45–08:15',k4b:'12 في صفحة الرحلات',tabMain:'القرار',hint:'اختر خطة لمعرفة سبب التوصية، ثم اعتمدها أو عدّلها أو ارفضها.',tabFl:'الرحلات (12)',backP:'العودة إلى الخطط',
+ real:'بيانات حقيقية',illus:'توضيحي',hLand:'الهبوط في الساعة · DXB',lgFog:'3 يناير 2026 (ضباب 07–08)',lgNorm:'الأيام العادية (الوسيط)',
+ hNet:'مطارات الإمارات · الجاهزية للضباب',nA:'المطار',nI:'ILS',nF:'صالح في الضباب',nD:'محوّلة إليه',yes:'نعم',no:'لا',fog:'ضباب',
+ arT:'تم رفض الخطط الثلاث',arS:'لا توجد خطة نشطة. تستمر الحركة وفق إجراءات المراقبة الجوية المعتادة حتى اعتماد خطة.',arBtn:'طلب خطط جديدة',lReq:'طلب خطط جديدة (عرض: أُعيد توليد الخطط نفسها)',
+ hProf:'نمط الأولوية · يختاره المراقب',pdelay:'أقل تأخير',pfuel:'أقل وقود / CO₂',pdiv:'أقل تحويلات',pconn:'حماية رحلات الربط',
+ hPlans:'خطط التعافي',rec:'موصى بها',rejd:'مرفوضة',
+ nmA:'انتظار الجميع في DXB',nmB:'متوازنة',nmC:'تحويل مبكر',
+ mDelay:'متوسط التأخير',mDiv:'التحويلات',mConf:'تعارض المواقف',mFuel:'وقود إضافي',mCo2:'CO₂ إضافي',mConn:'ربط معرّض للخطر',min:'د',t:'طن',
+ why:'لماذا هذه الخطة',cost:'ما تكلفتها',whyNot:'لماذا ليست الأخرى',conf:'الثقة',
+ whyA:'تهبط كل الرحلات في DXB بمعدل CAT III المخفّض. لا ينتهي أي راكب في مطار آخر.',
+ costA:'أطول انتظار (متوسط 34 دقيقة)، أكبر استهلاك للوقود، وتعارضان في المواقف.',
+ whyB:'تحوّل فقط 3 رحلات ذات أقل هامش وقود أو أطول انتظار. الباقي ينتظر وقتاً أقصر.',
+ costB:'3 رحلات تهبط في DWC أو AUH وتحتاج نقلاً أرضياً أو إعادة تموضع لاحقة.',
+ whyC:'تحوّل 6 رحلات مبكراً، فيخفّ طابور DXB أسرع ويكون متوسط التأخير الأقل.',
+ costC:'6 تحويلات. DWC أيضاً في ضباب، فطاقته أضيق.',
+ notA:'A: أطول تأخير وأعلى استهلاك للوقود.',notB:'B: أبطأ من C في التأخير، وتحويلات أكثر من A.',notC:'C: ضعف تحويلات B ودرجة خطر أعلى.',
+ approve:'اعتماد الخطة',modify:'تعديل',modifyOn:'إنهاء التعديل',reject:'رفض',
+ modB:'معدّلة: {n} تغيير. لا يُعاد حساب المقاييس في هذا العرض.',
+ okB:'اعتُمدت الخطة {p} الساعة {t}. أُرسلت التعليمات بعد التأكيد البشري.',
+ s1:'البرج / الاقتراب',s2:'AODB المطار · المواقف',s3:'مراكز عمليات الناقلات',s4:'لوحات قمرة القيادة',
+ hTrade:'التأخير مقابل الخطر',xAx:'Average delay (min)',yAx:'Risk score',tradeN:'الخطة D أسوأ في كل المقاييس فاستُبعدت. تبقى A لأنها الأقل تحويلاً.',
+ hLog:'سجل التدقيق',logE:'لا قرارات بعد.',user:'مشرف المراقبة (عرض)',
+ lSel:'تم اختيار النمط',lApp:'اعتماد الخطة',lRej:'رفض الخطة',lMod:'تغيير',lWith:'مع {n} تغيير',lReset:'إعادة ضبط العرض',
+ hFl:'الرحلات القادمة المتأثرة',flReal:'حقيقي: الرحلة، المصدر، الطراز، الموقف، الوقت، التأخير الفعلي',flSim:'توضيحي: إجراء الخطة · اصطناعي: الوقود، الربط، الطبي',
+ cF:'الرحلة',cO:'من',cT:'الطراز',cS:'المجدول',cA:'إجراء الخطة',cSt:'الموقف',cFu:'هامش الوقود (syn)',cC:'ركاب الربط (syn)',cP:'تنبيهات',cR:'التأخير الفعلي ذلك اليوم',
+ hold:'انتظار',divert:'تحويل',med:'طبي (syn)',confl:'تعارض موقف',locked:'A380: مقفل بحد السلامة',
+ foot:'بيانات حقيقية: معلومات رحلات مطارات دبي (القادمة)، Data.Dubai، DXB، 3 يناير 2026؛ METAR لـ OMDB؛ فئات ILS من GCAA eAIP. الخطط ومقاييسها ودرجة الخطر والثقة وتأكيدات الإرسال توضيحية حتى ربط المحسّن. الوقود وركاب الربط والأولوية الطبية بيانات اصطناعية. النص العربي يحتاج مراجعة.'}
+};
+
+/* ---------- state ---------- */
+var page='main',lang='en',prof='fuel',sel=null,acts=PLANS.B.acts.slice(),editing=false,approved=null,rejected={},log=[],stepN=0,timers=[],t0=Date.now();
+var $=function(id){return document.getElementById(id)};
+function tx(k){return T[lang][k]}
+function clock(){var s=7*3600+12*60+Math.floor((Date.now()-t0)/1000);var p=function(n){return ('0'+n).slice(-2)};return p(Math.floor(s/3600)%24)+':'+p(Math.floor(s/60)%60)+':'+p(s%60)}
+function addLog(kind,detail){log.unshift({t:clock(),kind:kind,detail:detail||''})}
+function view(){return sel||PROF[prof]} // plan shown on the Flights page and network table
+function mods(){var b=PLANS[view()].acts,n=0;acts.forEach(function(a,i){if(a!==b[i])n++});return n}
+function actTxt(a){return typeof a==='number'?tx('hold')+' '+a+' '+tx('min'):tx('divert')+' '+a}
+function allRejected(){return rejected.A&&rejected.B&&rejected.C}
+function pick(p){if(approved||rejected[p])return;sel=(p===sel)?null:p;acts=PLANS[view()].acts.slice();editing=false;render()}
+
+/* ---------- charts ---------- */
+function scatter(){
+  var w=310,h=200,l=34,b=30,top=10,r=12,x0=10,x1=42,y0=18,y1=50;
+  var X=function(v){return l+(w-l-r)*(v-x0)/(x1-x0)},Y=function(v){return h-b-(h-b-top)*(v-y0)/(y1-y0)},s='';
+  [20,30,40,50].forEach(function(v){s+='<line x1="'+l+'" x2="'+(w-r)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#2b3644"/><text x="'+(l-5)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+v+'</text>'});
+  [10,20,30,40].forEach(function(v){s+='<text x="'+X(v)+'" y="'+(h-b+13)+'" text-anchor="middle">'+v+'</text>'});
+  s+='<text x="'+((l+w-r)/2)+'" y="'+(h-2)+'" text-anchor="middle">'+tx('xAx')+'</text>';
+  s+='<text transform="translate(9,'+((h-b+top)/2)+') rotate(-90)" text-anchor="middle">'+tx('yAx')+'</text>';
+  s+='<circle cx="'+X(DOM.delay)+'" cy="'+Y(DOM.risk)+'" r="11" fill="none" stroke="#5b6b80" stroke-dasharray="3 3"/><text x="'+X(DOM.delay)+'" y="'+(Y(DOM.risk)+4)+'" text-anchor="middle">D</text>';
+  ['A','B','C'].forEach(function(p){var d=PLANS[p],on=p===sel,rc=p===PROF[prof];
+    s+='<g data-p="'+p+'" style="cursor:pointer"><circle cx="'+X(d.delay)+'" cy="'+Y(d.risk)+'" r="'+(on?15:12)+'" fill="'+(rc?'#2fd27a':'#2b3644')+'" stroke="'+(on?'#ffb020':'#0b0f14')+'" stroke-width="3"/><text x="'+X(d.delay)+'" y="'+(Y(d.risk)+5)+'" text-anchor="middle" style="fill:'+(rc?'#04210f':'#f2f5f8')+';font-weight:700;font-size:14px">'+p+'</text></g>'});
+  $('scatter').innerHTML=s;
+  $('scatter').querySelectorAll('[data-p]').forEach(function(g){g.onclick=function(){pick(g.dataset.p)}});
+}
+
+/* ---------- render ---------- */
+function render(){
+  var t=T[lang];
+  document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-t]').forEach(function(e){e.textContent=t[e.dataset.t]});
+  $('lang').textContent=t.other;
+  $('main').classList.toggle('hide',page!=='main');$('flPage').classList.toggle('hide',page!=='fl');
+  $('tabMain').classList.toggle('on',page==='main');$('tabFl').classList.toggle('on',page==='fl');
+  var v=view();
+  $('flPlan').textContent=v+' · '+t['nm'+v]+(sel?'':' ('+t.rec+')');
+  $('flBack').textContent=editing?t.modifyOn:t.backP;
+
+  // profiles
+  $('profiles').innerHTML=['delay','fuel','div','conn'].map(function(p){return '<button class="chip'+(p===prof?' on':'')+'" data-p="'+p+'">'+t['p'+p]+'</button>'}).join('');
+  $('profiles').querySelectorAll('.chip').forEach(function(c){c.onclick=function(){if(approved)return;prof=c.dataset.p;addLog('lSel',t['p'+prof]);if(!sel)acts=PLANS[view()].acts.slice();render()}});
+
+  // plans
+  var keys=['delay','div','conf','fuel','co2','conn'],lab={delay:'mDelay',div:'mDiv',conf:'mConf',fuel:'mFuel',co2:'mCo2',conn:'mConn'},unit={delay:t.min,fuel:t.t,co2:t.t};
+  var best={};keys.forEach(function(k){best[k]=Math.min(PLANS.A[k],PLANS.B[k],PLANS.C[k])});
+  $('plans').innerHTML=['A','B','C'].map(function(p){var d=PLANS[p];
+    return '<button class="plan'+(p===sel?' sel':'')+(rejected[p]?' rej':'')+'" data-p="'+p+'"><div class="ph"><div class="k">'+p+'</div><div class="nm">'+t['nm'+p]+'</div>'+
+      (rejected[p]?'<span class="tag bad">'+t.rejd+'</span>':p===PROF[prof]?'<span class="rec">'+t.rec+'</span>':'')+'</div><div class="mt">'+
+      keys.map(function(k){return '<span>'+t[lab[k]]+'</span><b class="num'+(d[k]===best[k]?' best':'')+'">'+d[k]+(unit[k]?' '+unit[k]:'')+'</b>'}).join('')+'</div><div class="pw">'+t['why'+p]+'</div></button>'}).join('');
+  $('plans').querySelectorAll('.plan').forEach(function(c){c.onclick=function(){pick(c.dataset.p)}});
+  $('plans').classList.toggle('big',!sel);
+  $('hint').classList.toggle('hide',!!sel||allRejected());
+  $('allRej').classList.toggle('hide',!allRejected());
+  $('exCard').classList.toggle('hide',!sel);
+  if(!sel){$('modB').classList.add('hide');}
+
+  // network
+  var dv={};acts.forEach(function(a){if(typeof a!=='number')dv[a]=(dv[a]||0)+1});
+  $('net').innerHTML='<tr><th>'+t.nA+'</th><th>'+t.nI+'</th><th>'+t.nF+'</th><th>'+t.nD+'</th></tr>'+NET.map(function(a){
+    return '<tr><td><b>'+a[0]+'</b>'+(a[3]?' <span class="tag sim">'+t.fog+'</span>':'')+'</td><td class="num">'+a[1]+'</td><td class="'+(a[2]?'yes':'nope')+'">'+(a[2]?t.yes:t.no)+'</td><td class="num">'+(a[0]==='DXB'?'—':(dv[a[0]]||0))+'</td></tr>'}).join('');
+  renderFlights(t,v);
+  renderLog(t);
+  scatter();
+  if(!sel)return;
+
+  // explanation
+  $('exT').textContent=sel+' · '+t['nm'+sel];
+  $('exWhy').textContent=t['why'+sel];$('exCost').textContent=t['cost'+sel];
+  $('exNot').textContent=['A','B','C'].filter(function(p){return p!==sel}).map(function(p){return t['not'+p]}).join('  ');
+  $('exConf').textContent=PLANS[sel].cf+'%';$('exBar').style.width=PLANS[sel].cf+'%';
+
+  // actions
+  var n=mods(),lock=!!approved||!!rejected[sel];
+  $('approve').textContent=t.approve+' '+sel;$('approve').disabled=lock||editing;
+  $('modify').disabled=lock;
+  $('reject').disabled=lock||editing;
+  $('modB').classList.toggle('hide',n===0);$('modB').textContent=t.modB.replace('{n}',n);
+  $('modB2').classList.toggle('hide',n===0);$('modB2').textContent=t.modB.replace('{n}',n);
+  $('okB').classList.toggle('hide',!approved);if(approved)$('okB').textContent=t.okB.replace('{p}',approved.p).replace('{t}',approved.t);
+  $('steps').classList.toggle('hide',!approved);
+  $('steps').querySelectorAll('.step').forEach(function(s,i){s.classList.toggle('on',i<stepN)});
+}
+
+function renderFlights(t,v){
+  var n=mods();
+  $('modB2').classList.toggle('hide',n===0);$('modB2').textContent=t.modB.replace('{n}',n);
+  var base=PLANS[v];
+  $('fl').innerHTML='<tr>'+['cF','cO','cT','cS','cA','cSt','cFu','cC','cP','cR'].map(function(k){return '<th>'+t[k]+'</th>'}).join('')+'</tr>'+FL.map(function(f,i){
+    var a=acts[i],div=typeof a!=='number',a380=f[2]==='A388',cell;
+    if(editing){var cur=div?a:'H';
+      cell='<select data-i="'+i+'"'+(a380?' disabled title="'+t.locked+'"':'')+'>'+[['H',t.hold],['DWC',t.divert+' DWC'],['AUH',t.divert+' AUH']].map(function(o){return '<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+(a380?' <span class="tag">'+t.locked+'</span>':'');
+    }else cell='<span class="'+(div?'act-d':'act-h')+'">'+actTxt(a)+'</span>'+(a!==base.acts[i]?' <span class="tag sim">✎</span>':'');
+    var flags=(f[8]?'<span class="tag bad">'+t.med+'</span> ':'')+(!div&&base.conflict.indexOf(i)>=0?'<span class="tag sim">'+t.confl+'</span>':'');
+    return '<tr><td><b class="num">'+f[0]+'</b></td><td>'+f[1]+'</td><td>'+f[2]+'</td><td class="num">'+f[4]+'</td><td>'+cell+'</td><td class="num">'+(div?'—':f[3])+'</td>'+
+      '<td><span class="fm"><i class="'+(f[6]<25?'low':'')+'" style="width:'+Math.min(100,f[6]*1.5)+'%"></i></span><span class="num">'+f[6]+' '+t.min+'</span></td><td class="num">'+f[7]+'</td><td>'+flags+'</td><td class="num">+'+f[5]+' '+t.min+'</td></tr>'}).join('');
+  $('fl').querySelectorAll('select').forEach(function(s){s.onchange=function(){var i=+s.dataset.i,old=acts[i];
+    acts[i]=s.value==='H'?(typeof PLANS[v].acts[i]==='number'?PLANS[v].acts[i]:30):s.value;
+    addLog('lMod',FL[i][0]+': '+actTxt(old)+' → '+actTxt(acts[i]));render()}});
+}
+
+function renderLog(t){
+  $('log').innerHTML=log.length?log.map(function(e){return '<div><time>'+e.t+'</time><span class="a">'+t[e.kind]+'</span> '+e.detail+'<br><span class="empty">'+t.user+'</span></div>'}).join(''):'<span class="empty">'+t.logE+'</span>';
+}
+
+/* ---------- events ---------- */
+$('approve').onclick=function(){var n=mods();approved={p:sel,t:clock()};editing=false;stepN=0;
+  addLog('lApp',sel+' · '+tx('p'+prof)+(n?' · '+tx('lWith').replace('{n}',n):''));render();
+  [500,1300,2100,2900].forEach(function(ms,i){timers.push(setTimeout(function(){stepN=i+1;render()},ms))})};
+$('modify').onclick=function(){editing=true;page='fl';render()};
+$('flBack').onclick=function(){editing=false;page='main';render()};
+$('tabMain').onclick=function(){editing=false;page='main';render()};
+$('tabFl').onclick=function(){page='fl';render()};
+$('reject').onclick=function(){rejected[sel]=true;addLog('lRej',sel);
+  sel=null;editing=false;acts=PLANS[view()].acts.slice();render()};
+$('newPlans').onclick=function(){rejected={};sel=null;acts=PLANS[view()].acts.slice();addLog('lReq','');render()};
+$('reset').onclick=function(){timers.forEach(clearTimeout);timers=[];page='main';prof='fuel';sel=null;acts=PLANS.B.acts.slice();editing=false;approved=null;rejected={};log=[];stepN=0;t0=Date.now();render()};
+$('lang').onclick=function(){lang=lang==='en'?'ar':'en';render()};
+setInterval(function(){$('clock').textContent=clock()+' LT'},1000);$('clock').textContent=clock()+' LT';
+render();
+</script>
+</body>
+</html>
