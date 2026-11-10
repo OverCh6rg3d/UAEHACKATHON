@@ -13,6 +13,7 @@ import json
 import pandas as pd
 
 from . import config as C
+from . import llm
 from .explain import IATA, flight_text, plan_text
 from .planner import make_plan
 from .scenario import load, scaled
@@ -131,9 +132,31 @@ def build_profile(sc, profile_id: str) -> dict:
             != (p["metrics"]["avg_delay_min"], p["metrics"]["risk_index"])
             for o in plans if o is not p)
         p["explanation"] = plan_text(p, [o for o in plans if o is not p], profile_id, p["recommended"])
+        p["explanation_source"] = "template"
     return {"id": profile_id, "label": cfg["label"], "label_ar": cfg["label_ar"],
             "objective": cfg["objective"], "recommended": best,
             "confidence": confidence(sc, profile_id, best), "plans": plans}
+
+
+def add_llm(profiles: list, cache_path) -> dict:
+    """Swap in grounded LLM text where it passes the checks; keep templates otherwise."""
+    used, reasons = 0, []
+    for pr in profiles:
+        res = llm.explain_profile(pr, cache_path)
+        for p in pr["plans"]:
+            p["explanation_template"] = p["explanation"]
+            if res["status"] == "llm":
+                p["explanation"] = res["plans"][p["id"]]
+                p["explanation_source"] = "llm"
+            else:
+                p["explanation_source"] = "template"
+        used += res["status"] == "llm"
+        if res["status"] != "llm":
+            reasons.append(f"{pr['id']}: {res.get('reason')}"
+                           + (f" {res['rejected_numbers']}" if res.get("rejected_numbers") else ""))
+    return {"status": "llm" if used == len(profiles) else ("mixed" if used else "template"),
+            "profiles_with_llm_text": used, "profiles": len(profiles), "fallback_reasons": reasons,
+            "grounding": "every number in LLM text must appear in the engine's facts, else the template is used"}
 
 
 def actual(sc) -> dict:
@@ -182,10 +205,13 @@ def airports_block(sc) -> list:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default="2026-01-03")
-    sc = load(ap.parse_args().date)
+    ap.add_argument("--llm", action="store_true", help="rewrite explanations with Gemini (needs GEMINI_API_KEY)")
+    args = ap.parse_args()
+    sc = load(args.date)
     s = sc.summary
     ref = metrics(make_plan(sc, "arrival", "A", ground_delay=False))
     profiles = [build_profile(sc, p) for p in C.PROFILES]
+    llm_status = add_llm(profiles, C.PROCESSED / f"scenario_{sc.date}" / "explanations_llm.json")         if args.llm else {"status": "off", "reason": "run with --llm to enable"}
     out = {
         "schema": "dabab.plans.v2",
         "scenario": {
@@ -210,6 +236,7 @@ def main():
         "airports": airports_block(sc),
         "risk_index": {"formula": "100 x (0.5 x flights landing with < 15 min fuel margin + 0.3 x flights holding > 30 min "
                                   "+ 0.2 x diverted flights) / all flights", "note": "Transparent index, not a certified safety metric."},
+        "explanations": llm_status,
         "recommendation_rule": "Lowest of 0.6 x profile measure + 0.4 x risk index, each scaled 0-1 across the three plans.",
         "assumptions": [
             "Simplified simulation: results are indicative, not operational predictions.",
@@ -241,7 +268,9 @@ def main():
         print(pd.DataFrame({f"{p['id']} {p['label']}" + (" *" if p["recommended"] else ""):
                             {**{k: p["metrics"][k] for k in keys}, "score": p["score"]}
                             for p in pr["plans"]}).to_string())
-    print(f"\nWrote {path} ({path.stat().st_size // 1024} KB)")
+    print(f"\nExplanations: {llm_status['status']}"
+          + (f" ({'; '.join(llm_status['fallback_reasons'][:1])} ...)" if llm_status.get("fallback_reasons") else ""))
+    print(f"Wrote {path} ({path.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":

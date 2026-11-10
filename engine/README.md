@@ -9,6 +9,31 @@ python -m engine.run --date 2026-01-03
 
 Output: `dabab_data_pipeline/dabab_data/processed/scenario_<date>/plans.json`
 
+## LLM explanations (optional)
+
+```bash
+python -m engine.run --date 2026-01-03 --llm
+```
+
+Needs `DABAB/.env` (git-ignored) with:
+
+```
+GEMINI_API_KEY=your-key        # free key: aistudio.google.com -> Get API key
+GEMINI_MODEL=gemini-2.5-flash  # any Gemini model your key can use
+```
+
+- Gemini rewrites each profile's three plan explanations in English and Arabic,
+  from the plans' metrics only (`engine/llm.py`, `facts_for`).
+- **Grounding check:** every number in the answer must appear in those facts
+  (Arabic-Indic digits included). One unknown number and the whole answer is
+  rejected; the template text is used instead.
+- Accepted answers are cached in `scenario_<date>/explanations_llm.json`, so the live
+  demo makes no API call. Delete that file to regenerate.
+- No key, a placeholder key, a failed call or a rejected answer never breaks the run:
+  templates are always there. `plans.json` says which was used:
+  top-level `explanations` and per plan `explanation_source` ("llm" or "template"),
+  with the template version kept in `explanation_template`.
+
 ## How a plan is built (simplified simulation, label it as such)
 
 1. **Capacity.** Landing slots per hour: the landings DXB actually achieved in each
@@ -67,6 +92,7 @@ Output: `dabab_data_pipeline/dabab_data/processed/scenario_<date>/plans.json`
     "min_visibility_m_during_event": 306, "weather_ok_during_event": true,
     "km_from_dxb": 41.8, "transfer_min_to_dxb": 41, "diversion_capacity_assumed": 25
   }],
+  "explanations": {"status": "llm" | "mixed" | "template" | "off", "fallback_reasons": ["..."]},
   "risk_index": {"formula": "...", "note": "..."},
   "recommendation_rule": "...",
   "assumptions": ["plain-language list, show in the UI"],
@@ -98,6 +124,8 @@ Output: `dabab_data_pipeline/dabab_data/processed/scenario_<date>/plans.json`
         "en": {"why": "...", "cost": "...", "why_not": ["A (...): ...", "C (...): ..."]},
         "ar": {"why": "...", "cost": "...", "why_not": ["..."]}
       },
+      "explanation_source": "llm" | "template",
+      "explanation_template": {"en": {}, "ar": {}},   // present after a --llm run
       "flights": [{
         "id": "2601056890", "flight": "EK 112", "airline": "EK", "origin": "BUD",
         "aircraft": "B77W", "size_class": "E", "eta": "ISO",
