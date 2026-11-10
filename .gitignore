@@ -1,0 +1,28 @@
+﻿# Secrets
+.env
+*.env
+
+# Raw & processed data (large / government data; each teammate downloads their own)
+*.csv
+*.pdf
+*.zip
+**/raw/
+**/processed/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# DB / logs
+*.sqlite
+*.db
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
