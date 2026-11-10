@@ -147,7 +147,8 @@ def make_plan(sc, sequence: str = "arrival", strategy: str = "A", ground_delay: 
         f["eta_normal"] = f["eta"]
         f["ground_delay_min"] = 0
     if ground_delay and C.GROUND_DELAY:
-        flights = _ground_delay(sc, flights, sequence, lead_min or C.DECISION_LEAD_MIN)
+        flights = _ground_delay(sc, flights, sequence,
+                                lead_min or sc.summary.get("decision_lead_min", C.DECISION_LEAD_MIN))
     plan = pd.DataFrame(_sequence(sc, flights, sequence, C.STRATEGIES[strategy],
                                   Balancer(sc.airports, sc.metar)))
     for idx in plan.index:

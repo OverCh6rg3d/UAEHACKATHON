@@ -52,6 +52,14 @@ Output: `dabab_data_pipeline/dabab_data/processed/scenario_<date>/plans.json`
     "landings_normal_same_hours": {"7": 28, "8": 27},
     "flights": 185
   },
+  "alert": {                                             // fog model (07_fog_model.py)
+    "watch_start": "ISO", "watch_lead_min": 334,         // WATCH: fog likely within hours
+    "warning_start": "ISO", "warning_lead_min": 22,      // WARNING: fog imminent
+    "fog_observed": "ISO",                               // ALERT: fog in the METAR
+    "timeline": [{"time": "ISO", "state": "CLEAR" | "WATCH" | "WARNING" | "ALERT",
+                  "visibility_m": 9994, "fog_probability_3h": 0.01}],
+    "model": {"name": "...", "watch_test": {}, "warning_test": {}, "note": "..."}
+  },
   "safety_floor": [{"en": "...", "ar": "..."}],          // the "always enforced" list
   "airports": [{                                         // airports table and map
     "icao": "OMDW", "iata": "DWC", "name": "...", "lat": 0, "lon": 0,

@@ -36,6 +36,47 @@ def _normal_delay(date: str) -> float:
     return 11.0  # average across all fog events, if 06 has not been run
 
 
+def _alert(d, summary) -> dict:
+    """Fog model output for the day (from 07_fog_model.py): states and lead times."""
+    p = d / "alert_timeline.csv"
+    if not p.exists():
+        return None
+    t = pd.read_csv(p)
+    t["valid_local"] = pd.to_datetime(t["valid_local"], utc=True).dt.tz_convert(C.TZ)
+    onset = pd.Timestamp(summary["fog_start_local"])
+    before = t[t["valid_local"] < onset]
+
+    def run_start(states):
+        """Start of the unbroken run of these states that leads up to fog onset."""
+        ok = before["state"].isin(states).values
+        if not len(ok) or not ok[-1]:
+            return None
+        j = len(ok) - 1
+        while j > 0 and ok[j - 1]:
+            j -= 1
+        return before["valid_local"].iloc[j]
+
+    watch, warn = run_start(["WATCH", "WARNING"]), run_start(["WARNING"])
+    lead = lambda x: None if x is None else round((onset - x).total_seconds() / 60)
+    mp = C.PROCESSED / "fog_model" / "metrics.json"
+    model = json.loads(mp.read_text()) if mp.exists() else {}
+    lv = model.get("levels", {})
+    return {
+        "watch_start": None if watch is None else watch.isoformat(), "watch_lead_min": lead(watch),
+        "warning_start": None if warn is None else warn.isoformat(), "warning_lead_min": lead(warn),
+        "fog_observed": onset.isoformat(),
+        "timeline": [{"time": r.valid_local.isoformat(), "state": r.state,
+                      "visibility_m": None if pd.isna(r.vis_m) else int(r.vis_m),
+                      "fog_probability_3h": None if pd.isna(r.fog_probability_3h) else round(r.fog_probability_3h, 3)}
+                     for r in t.itertuples()],
+        "model": {
+            "name": model.get("model"), "trained_on": model.get("history"), "test_period": model.get("split", {}).get("test"),
+            "watch_test": lv.get("WATCH", {}).get("test"), "warning_test": lv.get("WARNING", {}).get("test"),
+            "note": "The replay day is in the test period: the model never saw it in training.",
+        },
+    }
+
+
 def build_slots(capacity: dict, start, n_needed: int) -> list:
     """Evenly spaced landing slots inside each hour, from `start` until there are enough."""
     slots, hour = [], start.floor("h")
@@ -64,6 +105,10 @@ def load(date: str) -> Scenario:
     if not d.exists():
         raise SystemExit(f"{d} not found. Run 05_build_fog_scenario.py --date {date} first.")
     summary = json.loads((d / "summary.json").read_text())
+    summary["alert"] = _alert(d, summary)
+    if summary["alert"] and summary["alert"]["watch_lead_min"] is not None:
+        # DABAB cannot decide before the model raises a Watch
+        summary["decision_lead_min"] = int(min(C.DECISION_LEAD_MIN, summary["alert"]["watch_lead_min"]))
 
     f = pd.read_csv(d / "arrivals.csv", dtype={"aodbuniquefield": str})
     for c in ["scheduledinblocktime", "actuallandingtime", "actualinblocktime"]:

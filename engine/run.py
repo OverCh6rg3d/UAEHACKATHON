@@ -192,12 +192,15 @@ def main():
             "date": sc.date, "airport": "OMDB", "replay": True,
             "weather": {"type": "fog", "start": s["fog_start_local"], "end": s["fog_end_local"],
                         "min_visibility_m": s["min_visibility_m"]},
-            "decision_time": _iso(pd.Timestamp(s["fog_start_local"]) - pd.Timedelta(minutes=C.DECISION_LEAD_MIN)),
+            "decision_lead_min": s.get("decision_lead_min", C.DECISION_LEAD_MIN),
+            "decision_time": _iso(pd.Timestamp(s["fog_start_local"])
+                                  - pd.Timedelta(minutes=int(s.get("decision_lead_min", C.DECISION_LEAD_MIN)))),
             "capacity_per_hour": {str(h): c for h, c in sorted(sc.capacity.items())},
             "landings_fog_hours": s.get("fog_hour_landings"),
             "landings_normal_same_hours": s.get("normal_landings_same_hours"),
             "flights": int(len(sc.flights)),
         },
+        "alert": s.get("alert"),   # fog model: CLEAR / WATCH / WARNING / ALERT timeline and lead times
         "safety_floor": [
             {"en": "Medical and low-fuel flights land first", "ar": "الرحلات الطبية ومنخفضة الوقود تهبط أولاً"},
             {"en": "No landing planned within 5 min of a flight's fuel limit", "ar": "لا هبوط مخططاً ضمن 5 دقائق من حدّ الوقود"},
@@ -215,7 +218,7 @@ def main():
             "Fuel reserve, connecting passengers and medical priority are synthetic (seeded).",
             f"A diverted flight's delay = {C.DIVERTED_DELAY_MIN} min (median of inferred diversions on 3 Jan 2026).",
             "Holding fuel burn by size class and alternate diversion capacities are planning assumptions.",
-            f"Ground delay: decided {C.DECISION_LEAD_MIN} min before fog onset; flights not yet departed wait at origin "
+            f"Ground delay: decided {s.get('decision_lead_min', C.DECISION_LEAD_MIN)} min before fog onset (never before the fog model's Watch); flights not yet departed wait at origin "
             f"(max {C.GROUND_DELAY_MAX_MIN} min). Flight times are estimated by origin region (ICAO prefix).",
             "Stand sizes from GCAA chart notes or the largest aircraft observed on each stand.",
         ],
