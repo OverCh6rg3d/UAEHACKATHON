@@ -31,13 +31,56 @@ _cache = {}
 
 def plans_json(date: str) -> dict:
     p = PROCESSED / f"scenario_{date}" / "plans.json"
-    if p not in _cache:
-        _cache[p] = json.loads(p.read_text(encoding="utf-8"))
-    return _cache[p]
+    key = (p, p.stat().st_mtime)          # reload automatically when the engine rewrites it
+    if key not in _cache:
+        _cache.clear()
+        _cache[key] = json.loads(p.read_text(encoding="utf-8"))
+    return _cache[key]
 
 
 def hhmm(iso):
     return iso[11:16] if iso else None
+
+
+def _plan_conf(pr: dict, plan_id: str) -> tuple:
+    """(pct, wins) for one plan; older plans.json without per_plan falls back to the profile figure."""
+    c = pr["confidence"]
+    if "per_plan" in c:
+        return c["per_plan"][plan_id]["pct"], c["per_plan"][plan_id]["wins"]
+    return (c["pct"], c["agree"]) if plan_id == pr["recommended"] else (0, 0)
+
+
+def panel_plan(pl: dict, st: dict, d: dict) -> dict:
+    """One plan card in the panel's own shape."""
+    m, e = pl["metrics"], pl["explanation"]
+    byflight = {f["flight"]: f for f in pl["flights"]}
+    acts = []
+    for fn in PANEL_FLIGHTS:
+        f = byflight.get(fn)
+        if f is None:
+            acts.append(0)
+        elif f["action"] == "land":
+            acts.append(f["hold_min"])
+        else:
+            acts.append(f["divert_to_iata"] or "DIV")
+    # reliability = share of this plan's landings with at least 15 min of fuel to spare
+    landed = max(1, d["scenario"]["flights"] - m["diversions"])
+    rel = round(100 * (landed - m["low_margin_landings"]) / landed)
+    name = pl.get("card_name", {"en": pl["label"], "ar": pl["label_ar"]})
+    return {
+        "name": name,
+        "delay": round(m["avg_delay_min"]), "div": m["diversions"], "conf": m["stand_changes"],
+        "fuel": round(m["fuel_t"]), "co2": round(m["co2_t"]), "conn": m["connecting_pax_at_risk"],
+        "risk": round(m["risk_index"], 1),
+        # reliability: share of stress tests in which this plan's key result holds
+        "rel": rel, "cf": rel, "cfTxt": f"{rel}%",
+        "acts": acts, "conflict": [],
+        "dvAll": {ap["iata"]: m["diversions_by_airport"].get(ap["icao"], 0) for ap in d["airports"]},
+        "why": {L: e[L]["why"] for L in ("en", "ar")},
+        "cost": {L: e[L]["cost"] for L in ("en", "ar")},
+        "not": {L: e[L]["why_not"] for L in ("en", "ar")},
+        "source": pl.get("explanation_source", "template"),
+    }
 
 
 def panel_data(date: str) -> dict:
@@ -46,32 +89,10 @@ def panel_data(date: str) -> dict:
     plans, prof = {}, {}
     for key, pid in PROFILE.items():
         pr = next(x for x in d["profiles"] if x["id"] == pid)
-        prof[key] = pr["recommended"]
-        plans[key] = {}
-        for pl in pr["plans"]:
-            m, e = pl["metrics"], pl["explanation"]
-            byflight = {f["flight"]: f for f in pl["flights"]}
-            acts = []
-            for fn in PANEL_FLIGHTS:
-                f = byflight.get(fn)
-                if f is None:
-                    acts.append(0)
-                elif f["action"] == "land":
-                    acts.append(f["hold_min"])
-                else:
-                    acts.append(f["divert_to_iata"] or "DIV")
-            plans[key][pl["id"]] = {
-                "delay": round(m["avg_delay_min"]), "div": m["diversions"], "conf": m["stand_changes"],
-                "fuel": round(m["fuel_t"]), "co2": round(m["co2_t"]), "conn": m["connecting_pax_at_risk"],
-                "risk": round(m["risk_index"], 1), "cf": pr["confidence"]["pct"],
-                "cfTxt": f"{pr['confidence']['agree']}/{pr['confidence']['runs']}",
-                "acts": acts, "conflict": [],
-                "dvAll": {d_ap["iata"]: m["diversions_by_airport"].get(d_ap["icao"], 0) for d_ap in d["airports"]},
-                "why": {L: e[L]["why"] for L in ("en", "ar")},
-                "cost": {L: e[L]["cost"] for L in ("en", "ar")},
-                "not": {L: e[L]["why_not"] for L in ("en", "ar")},
-                "source": pl.get("explanation_source", "template"),
-            }
+        # set 0 = the main plans; set 1 = the alternatives offered after "reject all"
+        sets = [pr] + ([pr["alternatives"]] if "alternatives" in pr else [])
+        prof[key] = [st["recommended"] for st in sets]
+        plans[key] = [{pl["id"]: panel_plan(pl, st, d) for pl in st["plans"]} for st in sets]
     ref = d["reference"]["metrics"]
     a = d.get("alert") or {}
     return {

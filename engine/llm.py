@@ -80,7 +80,7 @@ def facts_for(profile: dict) -> dict:
                           "metrics": m}
     return {"profile": profile["label"], "profile_ar": profile["label_ar"],
             "profile_measure": profile["objective"], "recommended_plan": profile["recommended"],
-            "confidence_pct": profile["confidence"]["pct"], "plans": plans}
+            "plans": plans}
 
 
 C_IATA = {"OMDB": "DXB", "OMDW": "DWC", "OMAA": "AUH", "OMSJ": "SHJ", "OMRK": "RKT",

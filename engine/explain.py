@@ -23,13 +23,19 @@ def _airports(by_ap: dict) -> str:
     return ", ".join(f"{IATA.get(k, k)} {v}" for k, v in by_ap.items()) or "-"
 
 
-def plan_text(plan: dict, others: list, profile_id: str, recommended: bool) -> dict:
+def plan_text(plan: dict, others: list, profile_id: str, recommended: bool, strategies=None) -> dict:
     """why / cost / why_not for one plan, in en and ar."""
-    m, s = plan["metrics"], C.STRATEGIES[plan["id"]]
+    strategies = strategies or C.STRATEGIES
+    m, s = plan["metrics"], strategies[plan["id"]]
     obj = C.PROFILES[profile_id]["objective"]
     name, name_ar, fmt, fmt_ar = METRIC[obj]
     early = m["early_diversions"]
-    if s["early"] == "none":
+    if s["early"] == "none" and not s.get("ground_delay", True):
+        why = (f"Every flight holds in the air at DXB; no ground holds at origin. Diverts only when a flight "
+               f"reaches its fuel limit ({m['diversions']} diversions).")
+        why_ar = (f"تنتظر كل الرحلات في الجو فوق دبي دون انتظار أرضي في مطار المغادرة، ولا تحويل إلا عند بلوغ حدّ الوقود "
+                  f"({m['diversions']} تحويلات).")
+    elif s["early"] == "none":
         why = (f"Keeps every flight in the DXB queue and diverts only when a flight reaches its fuel limit "
                f"({m['diversions']} diversions). {m['ground_held_flights']} flights wait on the ground at origin.")
         why_ar = (f"تُبقي جميع الرحلات في طابور الهبوط في دبي ولا تحوّل أي رحلة إلا عند بلوغها حدّ الوقود "
@@ -58,7 +64,7 @@ def plan_text(plan: dict, others: list, profile_id: str, recommended: bool) -> d
 
     not_en, not_ar = [], []
     for o in others:
-        om, os_ = o["metrics"], C.STRATEGIES[o["id"]]
+        om, os_ = o["metrics"], strategies[o["id"]]
         not_en.append(f"{o['id']} ({os_['label']}): {name} {fmt(om[obj])} vs {fmt(m[obj])}; "
                       f"risk index {om['risk_index']} vs {m['risk_index']}; "
                       f"{om['diversions']} vs {m['diversions']} diversions.")
