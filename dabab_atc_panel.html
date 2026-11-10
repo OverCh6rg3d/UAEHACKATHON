@@ -149,12 +149,23 @@
   .alert{padding:8px 16px}.card{padding:10px 12px}main{gap:10px;padding:10px 16px}.col{gap:10px}
   /* wide screens (16:9 and wider): the right column splits into two, so the page is shorter and scales up */
   body.wide main{grid-template-columns:minmax(0,1fr) 640px}
-  body.wide main>.col:last-child{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"imp log" "net log";grid-template-rows:auto 1fr;align-content:stretch}
-  body.wide .c-imp{grid-area:imp}body.wide .c-net{grid-area:net}body.wide .c-log{grid-area:log}
+  body.wide main>.col:last-child{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"imp feed" "net log";grid-template-rows:auto 1fr;align-content:stretch}
+  body.wide .c-imp{grid-area:imp}body.wide .c-feed{grid-area:feed}body.wide .c-net{grid-area:net}body.wide .c-log{grid-area:log}
   .c-log{display:flex;flex-direction:column;min-height:0}.c-log .log{height:190px;max-height:190px!important;overflow-y:auto}
-  body.wide .c-log{align-self:start}body.wide .c-log .log{height:300px;max-height:300px!important}
+  body.wide .c-log{align-self:start}body.wide .c-log .log{height:150px;max-height:150px!important}
   main>.col:last-child{align-self:stretch}
   .csub{color:var(--dim);font-size:12px;margin-top:6px;line-height:1.3}
+  .c-net,.c-imp{align-self:start;flex:none}   /* never stretch: no empty box under the tables */
+  .c-feed{align-self:start;flex:none}
+  body:not(.wide) .feed{height:105px}body:not(.wide) .c-log .log{height:110px;max-height:110px!important}
+  .feed{height:190px;overflow-y:auto;font-size:12.5px;direction:ltr;font-family:Consolas,Menlo,monospace}
+  .feed div{display:grid;grid-template-columns:44px 38px 58px 1fr;gap:6px;padding:3px 0;border-bottom:1px solid #1f2935}
+  .feed .tm{color:var(--dim)}.feed .ap{font-weight:700}.feed .vs{text-align:end}
+  .feed .mt{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;font-size:11.5px}
+  .feed .s-WATCH .vs{color:var(--amber)}.feed .s-WARNING .vs{color:#ff8a3d}.feed .s-ALERT .vs{color:var(--red);font-weight:700}
+  .feed .s-ALERT{background:#2a1414}
+  .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-inline-end:6px;animation:blink 1.2s infinite}
+  @keyframes blink{50%{opacity:.25}}
   .hide{display:none}
 </style>
 </head>
@@ -224,6 +235,10 @@
     <div class="card compact c-net">
       <div class="hrow"><h2 data-t="hNet"></h2><span class="tag real" data-t="real"></span></div>
       <table id="net"></table>
+    </div>
+    <div class="card c-feed hide" id="feedCard">
+      <div class="hrow"><h2><span class="live"></span><span id="feedT">Live weather feed · METAR</span></h2><span class="tag real" data-t="real"></span></div>
+      <div class="feed" id="feed"></div>
     </div>
     <div class="card c-log">
       <div class="hrow"><h2 data-t="hLog"></h2></div>
@@ -506,6 +521,17 @@ render();
     PLANS=LIVE.plans[prof][SET];acts=PLANS[PROF[prof]].acts.slice();render();
     // chips: keep the flight actions in step with the newly chosen profile
     var chipFix=function(){$('profiles').querySelectorAll('.chip').forEach(function(c){var h=c.onclick;c.onclick=function(){h();if(!sel){PLANS=LIVE.plans[prof][SET];acts=PLANS[PROF[prof]].acts.slice();render()}}})};
+    (function feed(){
+      var F=D.feed||[];if(!F.length)return;$('feedCard').classList.remove('hide');
+      var box=$('feed'),i=0,stop='07:12';
+      function row(r){var el=document.createElement('div');el.className='s-'+(r.state||'CLEAR');
+        el.innerHTML='<span class="tm">'+r.time+'</span><span class="ap">'+r.airport+'</span><span class="vs">'+
+          (r.vis===null?'—':(r.vis>=9999?'10 km+':r.vis+' m'))+'</span><span class="mt">'+r.metar+'</span>';
+        box.insertBefore(el,box.firstChild)}
+      (function tick(){if(i<F.length&&F[i].time<=stop){row(F[i++]);setTimeout(tick,180)}})();
+      $('feedT').textContent=lang==='en'?'Live weather feed · METAR':'بث الطقس المباشر · METAR';
+      if(window.dababFit)setTimeout(window.dababFit,50);
+    })();
     var np=$('newPlans').onclick,rs=$('reset').onclick;
     $('newPlans').onclick=function(){SET=1-SET;setRec();PLANS=LIVE.plans[prof][SET];np();acts=PLANS[PROF[prof]].acts.slice();render()};
     $('reset').onclick=function(){SET=0;setRec();PLANS=LIVE.plans[prof][SET];rs();acts=PLANS[PROF[prof]].acts.slice();render()};

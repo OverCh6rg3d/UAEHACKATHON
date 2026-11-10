@@ -50,6 +50,37 @@ def _plan_conf(pr: dict, plan_id: str) -> tuple:
     return (c["pct"], c["agree"]) if plan_id == pr["recommended"] else (0, 0)
 
 
+FEED_STATIONS = {"OMDB": "DXB", "OMDW": "DWC", "OMAA": "AUH", "OMSJ": "SHJ"}
+_feed = {}
+
+
+def metar_feed(date: str, alert: dict) -> list:
+    """Real METAR reports for the replay morning (01:00-09:30 local), oldest first.
+    DXB rows carry the fog model's state at that report (CLEAR / WATCH / WARNING / ALERT)."""
+    if date in _feed:
+        return _feed[date]
+    import csv
+    states = {}
+    for r in (alert or {}).get("timeline", []):
+        states[r["time"][:16]] = r["state"]
+    out = []
+    with open(PROCESSED / "metar_clean.csv", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["station"] not in FEED_STATIONS:
+                continue
+            t = r["valid_local"]
+            if not t.startswith(date) or not ("01:00" <= t[11:16] <= "09:30"):
+                continue
+            vis = int(float(r["vis_m"])) if r["vis_m"] else None
+            fog = r["is_fog"] == "True"
+            st = states.get(t[:16].replace(" ", "T")) if r["station"] == "OMDB" else ("ALERT" if fog else "")
+            out.append({"time": t[11:16], "airport": FEED_STATIONS[r["station"]], "vis": vis,
+                        "wx": r["wxcodes"], "state": st or ("ALERT" if fog else ""), "metar": r["metar"]})
+    out.sort(key=lambda x: (x["time"], x["airport"]))
+    _feed[date] = out
+    return out
+
+
 def panel_plan(pl: dict, st: dict, d: dict) -> dict:
     """One plan card in the panel's own shape."""
     m, e = pl["metrics"], pl["explanation"]
@@ -105,6 +136,7 @@ def panel_data(date: str) -> dict:
         "alert": {"watch": hhmm(a.get("watch_start")), "warning": hhmm(a.get("warning_start")),
                   "fog": hhmm(a.get("fog_observed")), "watch_lead_min": a.get("watch_lead_min")},
         "actual": d["actual"]["metrics"],
+        "feed": metar_feed(date, d.get("alert")),
     }
 
 
