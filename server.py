@@ -64,6 +64,7 @@ def panel_data(date: str) -> dict:
                 "delay": round(m["avg_delay_min"]), "div": m["diversions"], "conf": m["stand_changes"],
                 "fuel": round(m["fuel_t"]), "co2": round(m["co2_t"]), "conn": m["connecting_pax_at_risk"],
                 "risk": round(m["risk_index"], 1), "cf": pr["confidence"]["pct"],
+                "cfTxt": f"{pr['confidence']['agree']}/{pr['confidence']['runs']}",
                 "acts": acts, "conflict": [],
                 "dvAll": {d_ap["iata"]: m["diversions_by_airport"].get(d_ap["icao"], 0) for d_ap in d["airports"]},
                 "why": {L: e[L]["why"] for L in ("en", "ar")},
@@ -75,7 +76,9 @@ def panel_data(date: str) -> dict:
     a = d.get("alert") or {}
     return {
         "date": date, "plans": plans, "prof": prof,
-        "dom": {"delay": round(ref["avg_delay_min"]), "risk": round(ref["risk_index"], 1)},
+        "dom": {"delay": round(ref["avg_delay_min"]), "risk": round(ref["risk_index"], 1),
+                "div": ref["diversions"], "fuel": round(ref["fuel_t"]), "co2": round(ref["co2_t"]),
+                "conn": ref["connecting_pax_at_risk"]},
         "net": [[x["iata"], f"CAT {x['ils_cat']}", 1 if x["usable_in_dense_fog"] else 0,
                  "fog" if (x["min_visibility_m_during_event"] or 9999) < 1000 else ""] for x in d["airports"]],
         "alert": {"watch": hhmm(a.get("watch_start")), "warning": hhmm(a.get("warning_start")),

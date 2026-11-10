@@ -102,15 +102,17 @@ def confidence(sc, profile_id: str, base_choice: str) -> dict:
     """Share of sensitivity runs (decision lead x fog landing rate) with the same recommendation."""
     cfg, agree, runs = C.PROFILES[profile_id], 0, 0
     for cap in C.SENSITIVITY_CAPACITY:
-        s2 = scaled(sc, cap) if cap != 1.0 else sc
+      for seed in C.SENSITIVITY_FUEL_SEEDS:
+        s2 = scaled(sc, cap, seed) if (cap != 1.0 or seed is not None) else sc
         for lead in C.SENSITIVITY_LEADS_MIN:
             ms = {k: metrics(make_plan(s2, cfg["sequence"], k, lead_min=lead, with_stands=False))
                   for k in C.STRATEGIES}
             runs += 1
             agree += recommend(ms, cfg["objective"])[0] == base_choice
     return {"pct": round(100 * agree / runs), "agree": agree, "runs": runs,
-            "method": "share of sensitivity runs where this plan stays recommended "
-                      f"(decision lead {C.SENSITIVITY_LEADS_MIN} min x fog landing rate {C.SENSITIVITY_CAPACITY})"}
+            "method": "share of what-if runs where this plan stays recommended: decision lead "
+                      f"{C.SENSITIVITY_LEADS_MIN} min x fog landing rate {C.SENSITIVITY_CAPACITY} x "
+                      f"{len(C.SENSITIVITY_FUEL_SEEDS)} draws of the synthetic fuel reserves"}
 
 
 def build_profile(sc, profile_id: str) -> dict:

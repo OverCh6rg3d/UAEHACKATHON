@@ -97,5 +97,7 @@ RISK_WEIGHTS = {"low_margin": 0.5, "long_hold": 0.3, "diverted": 0.2}
 RECOMMEND_WEIGHTS = {"objective": 0.6, "risk": 0.4}
 
 # ---- Confidence: share of sensitivity runs in which the same plan stays best ----
-SENSITIVITY_LEADS_MIN = [60, 120, 180]     # decision lead before fog onset
-SENSITIVITY_CAPACITY = [0.9, 1.0, 1.1]     # fog landing rate scaled by this
+SENSITIVITY_LEADS_MIN = [60, 90, 120, 150, 180]   # decision lead before fog onset
+SENSITIVITY_CAPACITY = [0.85, 1.0, 1.15]           # fog landing rate scaled by this
+SENSITIVITY_FUEL_SEEDS = [None, 7, 11]             # None = the scenario's own synthetic reserves;
+                                                   # others redraw them (30-90 min) with that seed

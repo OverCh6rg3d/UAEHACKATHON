@@ -33,7 +33,7 @@
   .kpi b{font-size:22px;direction:ltr;display:inline-block}
   .kpi em{font-style:normal;color:var(--dim);font-size:13px}
 
-  main{display:grid;grid-template-columns:330px minmax(0,1fr) 340px;gap:12px;padding:12px 16px}
+  main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;padding:12px 16px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
   .col{display:flex;flex-direction:column;gap:12px;min-width:0}
   .hrow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
@@ -125,6 +125,18 @@
   td select{background:var(--bg);border:2px solid var(--blue);border-radius:6px;padding:4px 6px}
   td select:disabled{border-color:var(--line);opacity:.6}
   footer{padding:0 16px 16px;color:var(--dim);font-size:12px}
+  .compact td{padding:4px 8px}.compact th{padding:4px 8px}
+  .ai{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:center}
+  .ai .lbl{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .tl{display:flex;gap:4px;align-items:stretch}
+  .tl div{flex:1;border-radius:6px;padding:6px 4px;text-align:center;font-size:12px;font-weight:700;border:2px solid var(--line)}
+  .tl small{display:block;font-weight:400;color:var(--dim);font-size:12px;direction:ltr}
+  .tl .c{border-color:#2d6b4a;color:var(--green)}.tl .w{border-color:#8a6a1e;color:var(--amber)}
+  .tl .n{border-color:#a0521e;color:#ff8a3d}.tl .f{border-color:#7a3030;color:var(--red);background:#2a1414}
+  .imp{display:flex;gap:8px}
+  .imp div{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;text-align:center}
+  .imp b{display:block;font-size:22px;color:var(--green);direction:ltr}.imp b.bad{color:var(--amber)}
+  .imp small{color:var(--dim);font-size:12px}
   .hide{display:none}
 </style>
 </head>
@@ -151,16 +163,9 @@
 </section>
 
 <main id="main">
-  <!-- LEFT -->
-  <div class="col">
-    <div class="card">
-      <div class="hrow"><h2 data-t="hNet"></h2><span class="tag real" data-t="real"></span></div>
-      <table id="net"></table>
-    </div>
-  </div>
-
   <!-- CENTRE -->
   <div class="col">
+    <div class="card ai hide" id="aiStrip"></div>
     <div class="card">
       <div class="hrow"><h2 data-t="hProf"></h2></div>
       <div class="profiles" id="profiles"></div>
@@ -201,6 +206,10 @@
       <div class="hrow"><h2 data-t="hTrade"></h2><span class="tag sim" data-t="illus"></span></div>
       <svg id="scatter" viewBox="0 0 310 200" width="100%"></svg>
       <p style="color:var(--dim);font-size:12px;margin-top:4px" data-t="tradeN"></p>
+    </div>
+    <div class="card compact">
+      <div class="hrow"><h2 data-t="hNet"></h2><span class="tag real" data-t="real"></span></div>
+      <table id="net"></table>
     </div>
     <div class="card">
       <div class="hrow"><h2 data-t="hLog"></h2></div>
@@ -360,7 +369,7 @@ function render(){
   $('profiles').querySelectorAll('.chip').forEach(function(c){c.onclick=function(){if(approved)return;prof=c.dataset.p;addLog('lSel',t['p'+prof]);if(!sel)acts=PLANS[view()].acts.slice();render()}});
 
   // plans
-  var keys=['delay','div','conf','fuel','co2','conn'],lab={delay:'mDelay',div:'mDiv',conf:'mConf',fuel:'mFuel',co2:'mCo2',conn:'mConn'},unit={delay:t.min,fuel:t.t,co2:t.t};
+  var keys=['delay','div','fuel','conn'],lab={delay:'mDelay',div:'mDiv',conf:'mConf',fuel:'mFuel',co2:'mCo2',conn:'mConn'},unit={delay:t.min,fuel:t.t,co2:t.t};
   var best={};keys.forEach(function(k){best[k]=Math.min(PLANS.A[k],PLANS.B[k],PLANS.C[k])});
   $('plans').innerHTML=['A','B','C'].map(function(p){var d=PLANS[p];
     return '<button class="plan'+(p===sel?' sel':'')+(rejected[p]?' rej':'')+'" data-p="'+p+'"><div class="ph"><div class="k">'+p+'</div><div class="nm">'+t['nm'+p]+'</div>'+
@@ -386,7 +395,7 @@ function render(){
   $('exT').textContent=sel+' · '+t['nm'+sel];
   $('exWhy').textContent=t['why'+sel];$('exCost').textContent=t['cost'+sel];
   $('exNot').textContent=['A','B','C'].filter(function(p){return p!==sel}).map(function(p){return t['not'+p]}).join('  ');
-  $('exConf').textContent=PLANS[sel].cf+'%';$('exBar').style.width=PLANS[sel].cf+'%';
+  $('exConf').textContent=PLANS[sel].cfTxt||(PLANS[sel].cf+'%');$('exBar').style.width=PLANS[sel].cf+'%';
 
   // actions
   var n=mods(),lock=!!approved||!!rejected[sel];
@@ -448,7 +457,7 @@ render();
     LIVE=D;PROF=D.prof;DOM=D.dom;NET=D.net;
     var a=D.alert||{};
     T.en.illus='ENGINE · SIMULATED';T.ar.illus='المحرّك · محاكاة';
-    T.en.mConf='Stand changes';T.ar.mConf='تغييرات المواقف';
+    T.en.conf='Stable in what-if runs';T.ar.conf='ثابتة في سيناريوهات الاختبار';
     if(a.watch){T.en.alertS='Fog model: Watch '+a.watch+', Warning '+a.warning+'. 3 recovery plans ready.';
                 T.ar.alertS='نموذج الضباب: ترقّب '+a.watch+'، تحذير '+a.warning+'. 3 خطط جاهزة.';}
     T.en.tradeN='D = no coordination (same simulation). Lower-left is better.';T.ar.tradeN='D = بدون تنسيق (المحاكاة نفسها). الأسفل يساراً أفضل.';
@@ -458,7 +467,23 @@ render();
       PLANS=LIVE.plans[prof];
       ['en','ar'].forEach(function(L){['A','B','C'].forEach(function(p){T[L]['why'+p]=PLANS[p].why[L];T[L]['cost'+p]=PLANS[p].cost[L]});
         if(sel){var o=['A','B','C'].filter(function(p){return p!==sel});o.forEach(function(p,i){T[L]['not'+p]=PLANS[sel].not[L][i]})}});
-      _render()};
+      _render();strip()};
+    function strip(){
+      var en=lang==='en',r=PLANS[PROF[prof]],d=DOM,el=$('aiStrip');el.classList.remove('hide');
+      var pct=function(a,b){return b?Math.round(100*(a-b)/b):0};
+      var cell=function(v,lab,bad){return '<div><b class="'+(bad?'bad':'')+'">'+(v>0?'+':'')+v+'%</b><small>'+lab+'</small></div>'};
+      var m={delay:[r.delay,d.delay,en?'avg delay':'متوسط التأخير'],fuel:[r.fuel,d.fuel,en?'holding + diversion fuel':'وقود الانتظار والتحويل'],
+             div:[r.div,d.div,en?'diversions':'التحويلات'],conn:[r.conn,d.conn,en?'connections at risk':'ربط معرّض للخطر']}[prof];
+      var a=[pct(m[0],m[1]),pct(r.fuel,d.fuel),pct(r.risk,d.risk)];
+      var lab2=[m[2],en?'fuel':'الوقود',en?'risk index':'مؤشر المخاطر'];
+      if(prof==='fuel'){a=[a[0],pct(r.delay,d.delay),a[2]];lab2[1]=en?'avg delay':'متوسط التأخير';}
+      var A=LIVE.alert,lead=A.watch_lead_min,h=Math.floor(lead/60),mi=lead%60;
+      el.innerHTML='<div><div class="lbl">'+(en?'AI fog model · METAR, 7 UAE airports · '+h+' h '+mi+' min warning':'نموذج الضباب الذكي · METAR لـ 7 مطارات · إنذار قبل '+h+' س '+mi+' د')+'</div>'+
+        '<div class="tl"><div class="c">'+(en?'CLEAR':'صافٍ')+'<small>&nbsp;</small></div><div class="w">'+(en?'WATCH':'ترقّب')+'<small>'+A.watch+'</small></div>'+
+        '<div class="n">'+(en?'WARNING':'تحذير')+'<small>'+A.warning+'</small></div><div class="f">'+(en?'FOG':'ضباب')+'<small>'+A.fog+'</small></div></div></div>'+
+        '<div><div class="lbl">'+(en?'Plan '+PROF[prof]+' vs no coordination (same simulation)':'الخطة '+PROF[prof]+' مقابل عدم التنسيق (المحاكاة نفسها)')+'</div>'+
+        '<div class="imp">'+a.map(function(v,i){return cell(v,lab2[i],v>0)}).join('')+'</div></div>';
+    }
     PLANS=LIVE.plans[prof];acts=PLANS[PROF[prof]].acts.slice();render();
     var ap=$('approve').onclick,rj=$('reject').onclick;
     $('approve').onclick=function(){var p=sel,m=acts.slice();ap();post({kind:'approve',plan:p,profile:prof,acts:m,modifications:mods()})};
