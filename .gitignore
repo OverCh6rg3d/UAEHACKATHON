@@ -4,7 +4,6 @@
 
 # Raw & processed data (large / government data; each teammate downloads their own)
 *.csv
-*.pdf
 *.zip
 **/raw/
 **/processed/
