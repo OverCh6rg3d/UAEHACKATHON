@@ -326,10 +326,14 @@ function pick(p){if(approved||rejected[p])return;sel=(p===sel)?null:p;acts=PLANS
 
 /* ---------- charts ---------- */
 function scatter(){
-  var w=310,h=200,l=34,b=30,top=10,r=12,x0=10,x1=42,y0=18,y1=50;
+  var w=310,h=200,l=34,b=30,top=10,r=12;
+  // axes follow the data: nice round steps around the three plans and D
+  var xs=[DOM.delay,PLANS.A.delay,PLANS.B.delay,PLANS.C.delay],ys=[DOM.risk,PLANS.A.risk,PLANS.B.risk,PLANS.C.risk];
+  var rng=function(v){var lo=Math.min.apply(0,v),hi=Math.max.apply(0,v),st=hi-lo>12?10:(hi-lo>5?5:2);return [Math.floor((lo-st/2)/st)*st,Math.ceil((hi+st/2)/st)*st,st]};
+  var xr=rng(xs),yr=rng(ys),x0=xr[0],x1=xr[1],y0=yr[0],y1=yr[1],ticks=function(a,b2,st){var o=[];for(var v=a;v<=b2+1e-9;v+=st)o.push(v);return o};
   var X=function(v){return l+(w-l-r)*(v-x0)/(x1-x0)},Y=function(v){return h-b-(h-b-top)*(v-y0)/(y1-y0)},s='';
-  [20,30,40,50].forEach(function(v){s+='<line x1="'+l+'" x2="'+(w-r)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#2b3644"/><text x="'+(l-5)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+v+'</text>'});
-  [10,20,30,40].forEach(function(v){s+='<text x="'+X(v)+'" y="'+(h-b+13)+'" text-anchor="middle">'+v+'</text>'});
+  ticks(y0,y1,yr[2]).forEach(function(v){s+='<line x1="'+l+'" x2="'+(w-r)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#2b3644"/><text x="'+(l-5)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+v+'</text>'});
+  ticks(x0,x1,xr[2]).forEach(function(v){s+='<text x="'+X(v)+'" y="'+(h-b+13)+'" text-anchor="middle">'+v+'</text>'});
   s+='<text x="'+((l+w-r)/2)+'" y="'+(h-2)+'" text-anchor="middle">'+tx('xAx')+'</text>';
   s+='<text transform="translate(9,'+((h-b+top)/2)+') rotate(-90)" text-anchor="middle">'+tx('yAx')+'</text>';
   s+='<circle cx="'+X(DOM.delay)+'" cy="'+Y(DOM.risk)+'" r="11" fill="none" stroke="#5b6b80" stroke-dasharray="3 3"/><text x="'+X(DOM.delay)+'" y="'+(Y(DOM.risk)+4)+'" text-anchor="middle">D</text>';
@@ -370,7 +374,7 @@ function render(){
   if(!sel){$('modB').classList.add('hide');}
 
   // network
-  var dv={};acts.forEach(function(a){if(typeof a!=='number')dv[a]=(dv[a]||0)+1});
+  var dv={};if(PLANS[v].dvAll&&!mods())dv=PLANS[v].dvAll;else acts.forEach(function(a){if(typeof a!=='number')dv[a]=(dv[a]||0)+1});
   $('net').innerHTML='<tr><th>'+t.nA+'</th><th>'+t.nI+'</th><th>'+t.nF+'</th><th>'+t.nD+'</th></tr>'+NET.map(function(a){
     return '<tr><td><b>'+a[0]+'</b>'+(a[3]?' <span class="tag sim">'+t.fog+'</span>':'')+'</td><td class="num">'+a[1]+'</td><td class="'+(a[2]?'yes':'nope')+'">'+(a[2]?t.yes:t.no)+'</td><td class="num">'+(a[0]==='DXB'?'—':(dv[a[0]]||0))+'</td></tr>'}).join('');
   renderFlights(t,v);
@@ -428,10 +432,39 @@ $('tabFl').onclick=function(){page='fl';render()};
 $('reject').onclick=function(){rejected[sel]=true;addLog('lRej',sel);
   sel=null;editing=false;acts=PLANS[view()].acts.slice();render()};
 $('newPlans').onclick=function(){rejected={};sel=null;acts=PLANS[view()].acts.slice();addLog('lReq','');render()};
-$('reset').onclick=function(){timers.forEach(clearTimeout);timers=[];page='main';prof='fuel';sel=null;acts=PLANS.B.acts.slice();editing=false;approved=null;rejected={};log=[];stepN=0;t0=Date.now();render()};
+$('reset').onclick=function(){timers.forEach(clearTimeout);timers=[];page='main';prof='fuel';sel=null;acts=PLANS[PROF.fuel].acts.slice();editing=false;approved=null;rejected={};log=[];stepN=0;t0=Date.now();render()};
 $('lang').onclick=function(){lang=lang==='en'?'ar':'en';render()};
 setInterval(function(){$('clock').textContent=clock()+' LT'},1000);$('clock').textContent=clock()+' LT';
 render();
+
+/* ---------- live data from the DABAB backend (server.py) ----------
+   If the page is opened without the server, the illustrative data above stays. */
+(function(){
+  if(location.protocol==='file:')return;
+  var DATE='2026-01-03',LIVE=null;
+  function post(body){body.date=DATE;body.user=tx('user');
+    return fetch('/api/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json()}).catch(function(){})}
+  fetch('/api/scenario?date='+DATE).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(D){
+    LIVE=D;PROF=D.prof;DOM=D.dom;NET=D.net;
+    var a=D.alert||{};
+    T.en.illus='ENGINE · SIMULATED';T.ar.illus='المحرّك · محاكاة';
+    T.en.mConf='Stand changes';T.ar.mConf='تغييرات المواقف';
+    if(a.watch){T.en.alertS='Fog model: Watch '+a.watch+', Warning '+a.warning+'. 3 recovery plans ready.';
+                T.ar.alertS='نموذج الضباب: ترقّب '+a.watch+'، تحذير '+a.warning+'. 3 خطط جاهزة.';}
+    T.en.tradeN='D = no coordination (same simulation). Lower-left is better.';T.ar.tradeN='D = بدون تنسيق (المحاكاة نفسها). الأسفل يساراً أفضل.';
+    T.en.foot='Real data: Dubai Airports flight information (Data.Dubai), DXB, 3 Jan 2026; METAR via Iowa Environmental Mesonet; stands, runways and ILS from the GCAA eAIP. Plans and metrics come from the DABAB engine (simplified simulation, all 185 arrivals in the event; extra fuel = holding and diversion fuel). Fuel reserves, connecting passengers and medical priority are synthetic. Arabic text needs a native-speaker check.';
+    var _render=render;
+    render=function(){
+      PLANS=LIVE.plans[prof];
+      ['en','ar'].forEach(function(L){['A','B','C'].forEach(function(p){T[L]['why'+p]=PLANS[p].why[L];T[L]['cost'+p]=PLANS[p].cost[L]});
+        if(sel){var o=['A','B','C'].filter(function(p){return p!==sel});o.forEach(function(p,i){T[L]['not'+p]=PLANS[sel].not[L][i]})}});
+      _render()};
+    PLANS=LIVE.plans[prof];acts=PLANS[PROF[prof]].acts.slice();render();
+    var ap=$('approve').onclick,rj=$('reject').onclick;
+    $('approve').onclick=function(){var p=sel,m=acts.slice();ap();post({kind:'approve',plan:p,profile:prof,acts:m,modifications:mods()})};
+    $('reject').onclick=function(){var p=sel;rj();post({kind:'reject',plan:p,profile:prof})};
+  }).catch(function(){/* backend not running: illustrative data stays */});
+})();
 </script>
 </body>
 </html>
