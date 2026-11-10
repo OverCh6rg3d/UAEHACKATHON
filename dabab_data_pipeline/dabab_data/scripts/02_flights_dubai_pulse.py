@@ -27,7 +27,7 @@ import pandas as pd
 import requests
 
 from common import (DUBAI_PULSE_TZ, PROCESSED, RAW_DUBAI_PULSE_ARRIVALS,
-                    RAW_DUBAI_PULSE_DEPARTURES)
+                    RAW_DUBAI_PULSE_DEPARTURES, norm_stand)
 
 TOKEN_URL = ("https://api.dubaipulse.gov.ae/oauth/client_credential/accesstoken"
              "?grant_type=client_credentials")
@@ -107,7 +107,7 @@ def clean_arrivals(df: pd.DataFrame) -> pd.DataFrame:
     df["size_class"] = df.get("aircraft_icao", pd.Series(index=df.index)).map(SIZE_CLASS).fillna("unknown")
     df["arr_delay_min"] = (df["actualinblocktime"] - df["scheduledinblocktime"]).dt.total_seconds() / 60
     df["taxi_in_min"] = (df["actualinblocktime"] - df["actuallandingtime"]).dt.total_seconds() / 60
-    df["stand"] = df.get("aircraftparkingposition", pd.Series(index=df.index)).astype(str).str.strip().replace("nan", pd.NA)
+    df["stand"] = df.get("aircraftparkingposition", pd.Series(index=df.index)).map(norm_stand)
     df["service_date"] = df["scheduledinblocktime"].dt.date
     keep = ["aodbuniquefield", "flightnumber", "airlinecode_iata", "airlinename", "origin_iata",
             "origin_icao", "aircraft_icao", "aircraft_iata", "size_class", "aircraftregistration",
@@ -127,7 +127,7 @@ def clean_departures(df: pd.DataFrame) -> pd.DataFrame:
         df["dep_delay_min"] = (df[actual] - df[sched]).dt.total_seconds() / 60
         df["service_date"] = df[sched].dt.date
     if "aircraftparkingposition" in df.columns:
-        df["stand"] = df["aircraftparkingposition"].astype(str).str.strip().replace("nan", pd.NA)
+        df["stand"] = df["aircraftparkingposition"].map(norm_stand)
     if "aircraft_icao" in df.columns:
         df["size_class"] = df["aircraft_icao"].map(SIZE_CLASS).fillna("unknown")
     return df

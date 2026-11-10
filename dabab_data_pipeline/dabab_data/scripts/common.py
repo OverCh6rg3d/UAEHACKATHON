@@ -28,3 +28,13 @@ DUBAI_PULSE_TZ = "Asia/Dubai"
 # Visibility below this (metres) counts as fog / low-visibility operations
 FOG_VIS_M = 1000
 LVP_VIS_M = 550  # roughly where low-visibility procedures bite hard
+
+
+def norm_stand(s):
+    """One stand-name format for flights and charts: 'A01' / 'E07L' -> 'A1' / 'E7L'."""
+    import re
+    if not isinstance(s, str) or not s.strip():
+        return None
+    s = s.strip().upper()
+    m = re.fullmatch(r"([A-Z]+)0*(\d+)([A-Z]?)", s)
+    return f"{m.group(1)}{m.group(2)}{m.group(3)}" if m else s

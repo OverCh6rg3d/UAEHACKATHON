@@ -21,7 +21,7 @@ import sys
 
 import pandas as pd
 
-from common import PROCESSED, RAW_GCAA_AIP
+from common import PROCESSED, RAW_GCAA_AIP, norm_stand
 
 # e.g. "B18L 251454.35N 0552137.22E 12.7"
 STAND_RE = re.compile(
@@ -31,9 +31,12 @@ STAND_RE = re.compile(
     r"(?:\s+(-?\d+(?:\.\d+)?))?"
 )
 
-# From the chart notes (OMDB AD 2-22A, AIRAC 08/2026). Re-check each AIRAC.
+# From the chart notes (OMDB AD 2-22A/B/C, AIRAC 12/2026). Re-check each AIRAC.
 A380_ONLY = {"B18R", "B21R", "B26R", "F26R"}
 CODE_E_MAX = {"B18L", "B21L", "B26L", "F26L"}
+# "for Code F aircraft with solid CL and can be used also for Code D and E"
+CODE_F = {"E44", "E45", "C51", "C53", "C54", "C55"}
+SIZE_ORDER = ["C", "D", "E", "F"]
 # Fill from the chart symbols (Code D/E/F) for the stands you use in the demo.
 STAND_OVERRIDES: dict[str, str] = {
     # "A1": "F",
@@ -50,7 +53,7 @@ def parse_text(text: str, airport: str, source: str) -> list[dict]:
     for m in STAND_RE.finditer(text):
         sid, la_d, la_m, la_s, la_h, lo_d, lo_m, lo_s, lo_h, elev = m.groups()
         rows.append({
-            "airport": airport, "stand": sid,
+            "airport": airport, "stand": norm_stand(sid),
             "lat": dms(la_d, la_m, la_s, la_h), "lon": dms(lo_d, lo_m, lo_s, lo_h),
             "elev_ft": float(elev) if elev else None,
             "apron": re.match(r"[A-Z]+", sid).group(0), "source": source,
@@ -73,7 +76,26 @@ def size_class(stand: str) -> str:
         return "F"
     if stand in CODE_E_MAX:
         return "E"
+    if stand in CODE_F:
+        return "F"
     return "unknown"
+
+
+def observed_size(stand_ids) -> pd.DataFrame:
+    """Largest aircraft class actually parked on each stand (Dubai Airports data).
+
+    The chart shows stand codes only as symbols, so this is the data-driven
+    stand capability. A stand that has hosted an A380 can take an A380.
+    """
+    f = PROCESSED / "flights_arrivals.csv"
+    if not f.exists():
+        return pd.DataFrame(columns=["stand", "observed_max_class", "observed_flights"])
+    a = pd.read_csv(f, usecols=["stand", "size_class"], low_memory=False).dropna()
+    a = a[a["stand"].isin(stand_ids) & a["size_class"].isin(SIZE_ORDER)]
+    a["rank"] = a["size_class"].map(SIZE_ORDER.index)
+    g = a.groupby("stand").agg(rank=("rank", "max"), observed_flights=("rank", "size")).reset_index()
+    g["observed_max_class"] = g["rank"].map(lambda r: SIZE_ORDER[r])
+    return g[["stand", "observed_max_class", "observed_flights"]]
 
 
 def main():
@@ -91,10 +113,19 @@ def main():
     if bad.any():
         print(f"Dropping {bad.sum()} rows with impossible coordinates")
         df = df[~bad]
-    df["size_class"] = df["stand"].map(size_class)
+    df["chart_class"] = df["stand"].map(size_class)
+    df = df.merge(observed_size(set(df["stand"])), on="stand", how="left")
+    # chart notes win; otherwise the largest aircraft seen there
+    df["size_class"] = df["chart_class"].where(df["chart_class"] != "unknown",
+                                               df["observed_max_class"]).fillna("unknown")
+    df["size_source"] = (df["chart_class"] != "unknown").map({True: "GCAA chart note",
+                                                              False: "observed (Dubai Airports)"})
+    df.loc[df["size_class"] == "unknown", "size_source"] = "none"
     df = df.sort_values(["airport", "apron", "stand"])
     df.to_csv(PROCESSED / "stands.csv", index=False)
     print(df.groupby(["airport", "apron"]).size().to_string())
+    print("\nsize_class:", df["size_class"].value_counts().to_dict())
+    print("size_source:", df["size_source"].value_counts().to_dict())
 
 
 if __name__ == "__main__":
