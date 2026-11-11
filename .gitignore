@@ -29,3 +29,6 @@ Thumbs.db
 # bundled demo data for final/start.py (small, needed on a fresh clone)
 !final/demo_data/
 !final/demo_data/**
+
+# Office lock files
+~$*

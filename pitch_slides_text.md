@@ -1,4 +1,4 @@
-# DABAB pitch: slide text (3 minutes)
+# DABAB Copilot pitch: slide text (3 minutes)
 
 Order and timing (180 s): Video 10 · Problem 20 · Solution & alignment 20 · Team 12 · Live demo 48 · AI 15 · Results 10 · Business model canvas 5 · Business key points 12 · Feasibility & 90 days 20 · Close 8.
 Challenge: **Challenge Profile #3 · GCAA**, under the themes **Responsible AI & Smart Cognitive Government · Aviation Safety · AI-Enabled Innovation**.
@@ -41,7 +41,7 @@ average arrival delay in fog at DXB, vs **11 min** on normal days
 
 **Kicker:** THE SOLUTION
 
-**Title:** DABAB: the AI predicts, plans and explains. The human decides.
+**Title:** DABAB Copilot: the AI predicts, plans and explains. The human decides.
 
 **Journey (5 steps, left to right):**
 1. **Predict:** AI fog model raises a Watch hours before the fog.
@@ -214,29 +214,24 @@ Controllers don't trust it → shadow mode and drills first · data access is sl
 
 **Kicker:** THE PATHWAY
 
-**Title:** 90 days: from prototype to a GCAA go / no-go
+**Title:** 90 days, six Agile sprints, to a GCAA go / no-go
 
-**Timeline (three phases, each with deliverables and a measurable exit test):**
+**Top row: six 2-week sprints, each ending in a demo to GCAA and dans controllers**
+| Sprints 1–2 · days 1–28 | Sprints 3–4 · days 29–56 | Sprints 5–6 · days 57–90 |
+|---|---|---|
+| **Live data:** Dubai Airports API, NCM METAR feed, production backend | **Beyond fog:** thunderstorms and dust; retrained fog model; secure endpoint so external systems and AI apply only approved plans | **Prove it:** replay every weather day; simulator drills with controllers; shadow mode at DXB if GCAA approves |
+| Demo: panel on live feeds | Demo: endpoint working in a sandbox | Gate: GCAA go / no-go |
 
-**Days 1–30 · Secure and compliant**
-- Wk 1–2: rebuild codebase with code review, automated tests, CI; access roles; encrypted, signed audit log
-- Wk 3: UAE data residency hosting; privacy and security review
-- Wk 4: safety case outline following aviation software assurance practice (DO-278A / ED-109A)
-- **Exit test:** security review passed · 100% of engine tests pass · zero safety-rule violations in all replays
+**Below: three tracks that run through every sprint (thin bands)**
+- **Security and compliance:** threat model, access control, UAE data residency; independent penetration test before shadow mode
+- **Reliability and safety assurance:** automated tests on every change; safety case built up sprint by sprint (DO-278A / ED-109A practice); zero safety-rule violations in every replay
+- **Stakeholders and market:** controller feedback every sprint; GCAA and dans reviews; pipeline to the other UAE airports
 
-**Days 31–60 · Beyond fog, open to other systems**
-- Wk 5–6: live Dubai Airports API + NCM METAR feed; retrain fog model on new data
-- Wk 6–7: add thunderstorm and dust events using the same engine (2 storm days already in our data)
-- Wk 7–8: secure execution endpoint: external systems, including AI, can apply **only human-approved** plans (signed approval, read-only by default)
-- **Exit test:** fog model warns ≥ 90% of events ≥ 2 h ahead on new data · endpoint works end to end in a sandbox
+**Footer: who delivers it:** core team of 2 + ATC advisor from dans · outsourced: UAE integration contractor (A-CDM / AODB), accredited security firm, B2G marketing partner for GCC outreach
 
-**Days 61–90 · Test, simulated then real**
-- Wk 9–10: replay every fog and storm day since 2025; report fuel, delay and diversions vs what happened
-- Wk 11: fog drills with 5+ controllers in a simulator; collect approve / modify / reject decisions
-- Wk 12: with GCAA approval, shadow mode at DXB (suggestions only, no live control); otherwise extended simulation
-- **Exit test:** controllers accept ≥ 70% of recommended plans in drills · measured fuel saving on every replayed day · GCAA go / no-go decision
+**Measurable targets:** fog model warns ≥ 90% of events ≥ 2 h ahead on new data · ≥ 70% of plans accepted in controller drills · zero safety-rule violations
 
-**Speaker notes:** "Ninety days, three phases, each with a measurable exit test. First make it secure and compliant. Then connect live data, extend it beyond fog, and open a secure endpoint so other systems can apply approved plans. Then test it: every past weather day, drills with controllers, and shadow mode at DXB if GCAA approves."
+**Speaker notes:** "We deliver in six two-week Agile sprints, each ending in a demo to GCAA and the controllers. First live data, then beyond fog with a secure endpoint for other systems, then proof: every past weather day, drills with controllers and shadow mode if GCAA approves. Security, compliance and safety assurance are not a phase: they run through every sprint. Two of us lead it with an ATC advisor; integration, the security audit and GCC marketing are outsourced to specialist partners."
 
 ---
 
@@ -244,7 +239,7 @@ Controllers don't trust it → shadow mode and drills first · data access is sl
 
 **Title:** When the weather changes, nobody should have to guess.
 
-**Subtitle:** DABAB: the AI predicts, plans and explains. The human decides.
+**Subtitle:** DABAB Copilot: the AI predicts, plans and explains. The human decides.
 
 **Footer:** Ali Eissa · Mohammed Hishaam · TDRA Hackathon 2026 · GCAA Challenge Profile #3
 
